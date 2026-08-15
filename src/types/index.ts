@@ -1,14 +1,19 @@
 export type UserRole = 'FOUNDER' | 'CUSTOMER' | 'ADMIN';
 
+export type StartupCategory = 'D2C' | 'SAAS' | 'B2B' | 'B2C';
+
+export type LogisticsModel = 'SELF_FULFILLED' | 'VENTURELY_SUPPORTED';
+
+export type ValidationPackageTier = 'STARTER' | 'GROWTH' | 'SCALE';
+
 export type ProductStage =
   | '0_IDEA'
   | '1_CONCEPT'
   | '2_PROTOTYPE'
   | '3_MVP'
   | '4_EARLY_PRODUCT'
-  | '5_D2C_LAUNCH'
-  | '6_VALIDATED'
-  | '7_MARKETPLACE';
+  | '5_VALIDATED'
+  | '6_MARKETPLACE';
 
 export interface StageInfo {
   key: ProductStage;
@@ -27,7 +32,7 @@ export interface ValidationScoreBreakdown {
   conversion: number; // 0-100
   customerSatisfaction: number; // 0-100
   unitEconomics: number; // 0-100
-  momentum: number; // 0-100
+  fomoUrgency: number; // 0-100
 }
 
 export interface NextStepRecommendation {
@@ -50,6 +55,17 @@ export interface CustomerFeedbackTheme {
   quotes: string[];
 }
 
+export interface AdMetrics {
+  adSpend: number;
+  impressions: number;
+  clicks: number;
+  ctr: number; // e.g. 3.4%
+  cpc: number; // e.g. ₹18
+  cac: number; // Cost Per Acquisition / Validation
+  roas: number;
+  activePackage?: ValidationPackageTier;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -59,19 +75,30 @@ export interface Product {
   problem: string;
   solution: string;
   category: string;
-  subcategory?: string;
+  startupType: StartupCategory; // D2C, SAAS, B2B, B2C
   stage: ProductStage;
   founderName: string;
   companyName: string;
   founderEmail: string;
   images: string[];
   videoUrl?: string;
-  price: number;
-  expectedPrice?: number;
+  price: number; // Current validation / pre-order price
+  expectedPrice?: number; // Retail price after mass launch
   discountPrice?: number;
+  
+  // Logistics & Fulfillment Choice
+  logisticsModel: LogisticsModel;
+  shippingEstimateDays?: string;
+  shippingFee?: number;
+
+  // Inventory & Manufacturing Forecast
   inventoryTotal: number;
   inventorySold: number;
+  recommendedBatchSize: number; // e.g. 500 units for next manufacturing run
+  breakevenUnits: number;
   manufacturingStatus: string;
+
+  // Validation Objectives & Target Audience
   targetAudience: string;
   validationObjective: string;
   estimatedLaunchDate?: string;
@@ -81,38 +108,50 @@ export interface Product {
   isSponsored: boolean;
   createdAt: string;
 
-  // Smytten-inspired Trial Sample System
-  hasTrialOption?: boolean;
-  trialPointsCost?: number; // e.g. 1 point or 2 points
-  trialSizeDescription?: string; // e.g. "15ml Trial Pack" or "7-Day Discovery Kit"
-  trialInventoryTotal?: number;
-  trialInventoryClaimed?: number;
+  // Waitlist & FOMO Urgency Engine
+  limitedBatchSize: number; // e.g. 50 prototype units
+  batchClaimedCount: number; // e.g. 43 claimed
+  priceLockExpiry?: string; // ISO string for countdown timer
+  currentViewersCount: number; // Live viewer counter e.g. 94 people viewing
+  waitlistCount: number;
+  vipWaitlistSlots?: number;
 
-  // Validation & Analytics metrics
+  // Conversion & Analytics factors
   views: number;
   uniqueVisitors: number;
-  waitlistCount: number;
-  interestVotes: number;
+  cartAdditionsCount: number;
+  checkoutInitiatedCount: number;
   preOrdersCount: number;
   ordersCount: number;
   totalRevenue: number;
+  
+  // Ratios & Rates
+  cartPurchaseRate: number; // Percentage of cart adds that purchase (e.g. 18.5%)
+  cartAbandonmentRate: number;
+  checkoutIntentRate: number;
+  willingnessToPayScore: number; // 0 - 100
   cac: number;
   aov: number;
-  roas: number;
   conversionRate: number;
   refundRate: number;
-  sellThroughRate: number;
-  salesVelocityPerDay: number;
 
-  // Proprietary score
+  // Ad Campaign Integration
+  adMetrics: AdMetrics;
+
+  // Financial Economics
+  commissionRate: number; // 5% - 7% platform fee
+
+  // Proprietary score & recommendations
   validationScore: ValidationScoreBreakdown;
   recommendations: NextStepRecommendation[];
   feedbackThemes: CustomerFeedbackTheme[];
 }
 
-export interface TrialCartItem {
+export interface ValidationCartItem {
   product: Product;
-  pointsCost: number;
+  quantity: number;
+  selectedOption?: string;
+  isPreOrder?: boolean;
 }
 
 export interface WaitlistEntry {
@@ -121,7 +160,9 @@ export interface WaitlistEntry {
   productName: string;
   customerEmail: string;
   customerName?: string;
-  customerPersona?: string;
+  referralCode: string;
+  referralCount: number;
+  rank: number;
   willingnessToPay?: number;
   feedbackNote?: string;
   createdAt: string;
@@ -145,11 +186,12 @@ export interface Order {
   shippingAddress: string;
   amount: number;
   quantity: number;
+  logisticsModel: LogisticsModel;
   status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   paymentStatus: 'PAID' | 'PENDING' | 'REFUNDED';
   trackingNumber?: string;
-  isTrialOrder?: boolean;
-  trialPointsSpent?: number;
+  courierName?: string;
+  isPreOrder?: boolean;
   createdAt: string;
 }
 
@@ -165,16 +207,16 @@ export interface ProductReview {
   createdAt: string;
 }
 
-export interface MarketingCampaign {
+export interface MarketingCampaignPackage {
   id: string;
   productId: string;
-  name: string;
-  objective: string;
-  targetAudience: string;
-  adSpend: number;
+  tier: ValidationPackageTier;
+  packageName: string;
+  adSpendAllocation: number;
   platformFee: number;
   totalBudget: number;
   status: 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED';
+  targetAudience: string;
   impressions: number;
   clicks: number;
   conversions: number;
@@ -184,17 +226,28 @@ export interface MarketingCampaign {
 }
 
 export interface PlatformConfig {
-  defaultCommissionRate: number; // 7%
-  availableCommissionRates: number[];
+  defaultCommissionRate: number; // 6%
+  availableCommissionRates: number[]; // [5, 6, 7]
   validationPackages: {
-    idea: number;
-    launch: number;
-    growth: number;
+    starter: { price: number; adSpend: number; targetVisitors: number };
+    growth: { price: number; adSpend: number; targetVisitors: number };
+    scale: { price: number; adSpend: number; targetVisitors: number };
   };
   graduationCriteria: {
     minOrders: number;
     minValidationScore: number;
+    minCartPurchaseRate: number;
     minCustomerRating: number;
     maxRefundRate: number;
   };
+}
+
+export interface LiveFomoEvent {
+  id: string;
+  customerName: string;
+  city: string;
+  productName: string;
+  actionText: string; // e.g. "pre-ordered Prototype #42" or "joined VIP Waitlist"
+  timeAgo: string;
+  startupType: StartupCategory;
 }

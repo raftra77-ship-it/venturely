@@ -1,8 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { UserRole, Product, TrialCartItem } from '@/types';
-import { getProducts } from '@/lib/data';
+import { UserRole, Product, ValidationCartItem } from '@/types';
+import { getProducts, recordCartAdd } from '@/lib/data';
 
 interface RoleContextType {
   role: UserRole;
@@ -10,18 +10,30 @@ interface RoleContextType {
   activeProductId: string;
   setActiveProductId: (id: string) => void;
   activeProduct: Product | undefined;
+  products: Product[];
+  refreshProducts: () => void;
   toastMessage: string | null;
   showToast: (msg: string) => void;
 
-  // Smytten-Style Trial Point System
-  userTrialPoints: number;
-  maxTrialPoints: number;
-  trialCart: TrialCartItem[];
-  addToTrialCart: (product: Product) => boolean;
-  removeFromTrialCart: (productId: string) => void;
-  clearTrialCart: () => void;
-  isTrialDrawerOpen: boolean;
-  setIsTrialDrawerOpen: (open: boolean) => void;
+  // Real Validation Cart Engine
+  validationCart: ValidationCartItem[];
+  addToValidationCart: (product: Product, isPreOrder?: boolean) => void;
+  removeFromValidationCart: (productId: string) => void;
+  clearValidationCart: () => void;
+  isCartDrawerOpen: boolean;
+  setIsCartDrawerOpen: (open: boolean) => void;
+  
+  // Checkout Modal State
+  selectedCheckoutProduct: Product | null;
+  setSelectedCheckoutProduct: (p: Product | null) => void;
+  isCheckoutOpen: boolean;
+  setIsCheckoutOpen: (open: boolean) => void;
+
+  // Waitlist Modal State
+  selectedWaitlistProduct: Product | null;
+  setSelectedWaitlistProduct: (p: Product | null) => void;
+  isWaitlistOpen: boolean;
+  setIsWaitlistOpen: (open: boolean) => void;
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
@@ -32,25 +44,29 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
 
-  // Smytten-inspired 6 Trial Points State
-  const maxTrialPoints = 6;
-  const [userTrialPoints, setUserTrialPoints] = useState<number>(6);
-  const [trialCart, setTrialCart] = useState<TrialCartItem[]>([]);
-  const [isTrialDrawerOpen, setIsTrialDrawerOpen] = useState<boolean>(false);
+  // Validation Cart & Modal States
+  const [validationCart, setValidationCart] = useState<ValidationCartItem[]>([]);
+  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState<boolean>(false);
+  const [selectedCheckoutProduct, setSelectedCheckoutProduct] = useState<Product | null>(null);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
 
-  useEffect(() => {
+  const [selectedWaitlistProduct, setSelectedWaitlistProduct] = useState<Product | null>(null);
+  const [isWaitlistOpen, setIsWaitlistOpen] = useState<boolean>(false);
+
+  const refreshProducts = () => {
     const list = getProducts();
     setProducts(list);
-    if (list.length > 0 && !activeProductId) {
-      setActiveProductId(list[0].id);
-    }
-  }, [activeProductId]);
+  };
+
+  useEffect(() => {
+    refreshProducts();
+  }, []);
 
   const activeProduct = products.find((p) => p.id === activeProductId) || products[0];
 
   const setRole = (newRole: UserRole) => {
     setRoleState(newRole);
-    showToast(`Switched view mode to ${newRole}`);
+    showToast(`Switched workspace role to ${newRole}`);
   };
 
   const showToast = (msg: string) => {
@@ -60,37 +76,31 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     }, 3500);
   };
 
-  const addToTrialCart = (product: Product): boolean => {
-    const cost = product.trialPointsCost || 1;
-    if (trialCart.some((item) => item.product.id === product.id)) {
-      showToast(`Already added ${product.name} sample to your Trial Pack!`);
-      return false;
-    }
+  const addToValidationCart = (product: Product, isPreOrder: boolean = true) => {
+    recordCartAdd(product.id);
+    refreshProducts();
 
-    if (userTrialPoints < cost) {
-      showToast(`Not enough Trial Points! You need ${cost} point(s), but have ${userTrialPoints} remaining.`);
-      return false;
-    }
+    setValidationCart((prev) => {
+      const existing = prev.find((item) => item.product.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        );
+      }
+      return [...prev, { product, quantity: 1, isPreOrder }];
+    });
 
-    setTrialCart((prev) => [...prev, { product, pointsCost: cost }]);
-    setUserTrialPoints((prev) => prev - cost);
-    showToast(`Added ${product.name} sample to Trial Pack! (${cost} point)`);
-    setIsTrialDrawerOpen(true);
-    return true;
+    showToast(`Added ${product.name} pre-order to Validation Cart!`);
+    setIsCartDrawerOpen(true);
   };
 
-  const removeFromTrialCart = (productId: string) => {
-    const item = trialCart.find((i) => i.product.id === productId);
-    if (item) {
-      setUserTrialPoints((prev) => prev + item.pointsCost);
-      setTrialCart((prev) => prev.filter((i) => i.product.id !== productId));
-      showToast(`Removed sample from Trial Pack.`);
-    }
+  const removeFromValidationCart = (productId: string) => {
+    setValidationCart((prev) => prev.filter((item) => item.product.id !== productId));
+    showToast(`Removed product from Validation Cart.`);
   };
 
-  const clearTrialCart = () => {
-    setTrialCart([]);
-    setUserTrialPoints(6);
+  const clearValidationCart = () => {
+    setValidationCart([]);
   };
 
   return (
@@ -101,16 +111,24 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
         activeProductId,
         setActiveProductId,
         activeProduct,
+        products,
+        refreshProducts,
         toastMessage,
         showToast,
-        userTrialPoints,
-        maxTrialPoints,
-        trialCart,
-        addToTrialCart,
-        removeFromTrialCart,
-        clearTrialCart,
-        isTrialDrawerOpen,
-        setIsTrialDrawerOpen,
+        validationCart,
+        addToValidationCart,
+        removeFromValidationCart,
+        clearValidationCart,
+        isCartDrawerOpen,
+        setIsCartDrawerOpen,
+        selectedCheckoutProduct,
+        setSelectedCheckoutProduct,
+        isCheckoutOpen,
+        setIsCheckoutOpen,
+        selectedWaitlistProduct,
+        setSelectedWaitlistProduct,
+        isWaitlistOpen,
+        setIsWaitlistOpen,
       }}
     >
       {children}

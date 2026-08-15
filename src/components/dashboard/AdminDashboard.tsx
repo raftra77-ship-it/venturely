@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { getProducts, getOrders, getPlatformConfig, updatePlatformConfig, approveProductByAdmin, graduateProductToMarketplace } from '@/lib/data';
+import { getProducts, getOrders, updateProduct } from '@/lib/data';
 import { useRole } from '@/context/RoleContext';
 import { Product } from '@/types';
 import { StageBadge } from '../product/StageBadge';
@@ -14,290 +14,237 @@ import {
   CheckCircle2,
   XCircle,
   TrendingUp,
-  Settings,
-  ShieldCheck,
-  AlertTriangle,
+  Percent,
+  Truck,
+  Megaphone,
 } from 'lucide-react';
 
 export function AdminDashboard() {
-  const { showToast } = useRole();
+  const { showToast, refreshProducts } = useRole();
   const [products, setProducts] = useState<Product[]>(getProducts());
   const orders = getOrders();
-  const [config, setConfig] = useState(getPlatformConfig());
-  const [activeTab, setActiveTab] = useState<'moderation' | 'graduation' | 'commission' | 'trust'>('moderation');
+  const [activeTab, setActiveTab] = useState<'moderation' | 'commission' | 'logistics'>('moderation');
 
   const totalGMV = products.reduce((acc, p) => acc + p.totalRevenue, 0);
-  const estimatedRevenue = Math.round(totalGMV * (config.defaultCommissionRate / 100) + products.length * 1999);
+  const estimatedRevenue = Math.round(totalGMV * 0.06 + products.length * 4999);
 
   const handleApproveToggle = (productId: string, current: boolean) => {
-    approveProductByAdmin(productId, !current);
+    updateProduct(productId, { isApprovedByAdmin: !current });
     setProducts(getProducts());
+    refreshProducts();
     showToast(`Product approval status updated.`);
   };
 
   const handleGraduateApprove = (productId: string) => {
-    graduateProductToMarketplace(productId);
+    updateProduct(productId, {
+      isGraduatedToMarketplace: true,
+      stage: '6_MARKETPLACE',
+      commissionRate: 6,
+    });
     setProducts(getProducts());
-    showToast(`Approved graduation for product! Badge awarded.`);
+    refreshProducts();
+    showToast(`Approved marketplace graduation! 6% commission active.`);
   };
 
-  const handleCommissionChange = (rate: number) => {
-    updatePlatformConfig({ defaultCommissionRate: rate });
-    setConfig(getPlatformConfig());
-    showToast(`Default marketplace commission updated to ${rate}%`);
+  const handleSetCommission = (productId: string, rate: number) => {
+    updateProduct(productId, { commissionRate: rate });
+    setProducts(getProducts());
+    refreshProducts();
+    showToast(`Set commission rate for product to ${rate}%`);
   };
 
   return (
     <div className="space-y-8">
       {/* Header Banner */}
-      <div className="bg-slate-900 text-white rounded-xl p-6 shadow-xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-[#0f1628] text-white rounded-3xl p-8 shadow-xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-amber-400 font-mono text-xs uppercase tracking-wider font-semibold">
+          <div className="flex items-center gap-2 text-amber-400 font-bold text-xs uppercase tracking-wider">
             <ShieldAlert className="w-4 h-4" />
-            <span>Platform Administration & Trust System</span>
+            <span>Platform Administration & Moderation</span>
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight mt-1">Platform Admin Control Panel</h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Orchestrate startup validation campaigns, moderate submissions, approve marketplace graduations, and control platform commissions.
+          <h1 className="text-3xl font-extrabold tracking-tight mt-1">Admin Control Console</h1>
+          <p className="text-xs text-gray-300 mt-1">
+            Oversee startup validation campaigns, approve marketplace graduations, adjust 5–7% commission rates, and track logistics dispatches.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="bg-slate-800 px-4 py-2 rounded-lg border border-slate-700 font-mono text-xs">
-            <span className="text-slate-400">Current Commission:</span>{' '}
-            <strong className="text-emerald-400">{config.defaultCommissionRate}%</strong>
-          </div>
+        <div className="bg-white/10 px-5 py-2.5 rounded-2xl border border-white/15 backdrop-blur-md">
+          <span className="text-xs text-gray-300">Commission Range:</span>{' '}
+          <strong className="text-emerald-400 font-extrabold">5% – 7% Fee</strong>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
-          <span className="text-xs font-mono text-slate-400 uppercase">Platform GMV</span>
-          <div className="text-2xl font-bold font-mono text-slate-900">₹{formatCurrency(totalGMV)}</div>
-          <p className="text-[11px] text-slate-500">Gross Merchandise Volume</p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+        <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm space-y-1">
+          <span className="text-xs font-bold text-gray-400 uppercase">Platform GMV</span>
+          <div className="text-2xl font-extrabold text-black">{formatCurrency(totalGMV)}</div>
+          <p className="text-[11px] text-gray-500">Gross Pre-Order Volume</p>
         </div>
 
-        <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
-          <span className="text-xs font-mono text-slate-400 uppercase">Platform Revenue</span>
-          <div className="text-2xl font-bold font-mono text-emerald-700">₹{formatCurrency(estimatedRevenue)}</div>
-          <p className="text-[11px] text-slate-500">Commissions & Validation fees</p>
+        <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm space-y-1">
+          <span className="text-xs font-bold text-gray-400 uppercase">Est. Platform Fees</span>
+          <div className="text-2xl font-extrabold text-emerald-600">{formatCurrency(estimatedRevenue)}</div>
+          <p className="text-[11px] text-gray-500">Ad Fees + 5–7% Commission</p>
         </div>
 
-        <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
-          <span className="text-xs font-mono text-slate-400 uppercase">Active Startups</span>
-          <div className="text-2xl font-bold font-mono text-blue-600">{products.length}</div>
-          <p className="text-[11px] text-slate-500">Across 9 validation stages</p>
+        <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm space-y-1">
+          <span className="text-xs font-bold text-gray-400 uppercase">Active Startups</span>
+          <div className="text-2xl font-extrabold text-[#489cff]">{products.length}</div>
+          <p className="text-[11px] text-gray-500">D2C, SaaS, B2B, B2C</p>
         </div>
 
-        <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
-          <span className="text-xs font-mono text-slate-400 uppercase">Fulfilled Orders</span>
-          <div className="text-2xl font-bold font-mono text-purple-600">{orders.length}</div>
-          <p className="text-[11px] text-slate-500">Platform-wide orders</p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200 gap-2">
-        {[
-          { id: 'moderation', label: 'Product Moderation Queue', icon: CheckCircle2 },
-          { id: 'graduation', label: 'Marketplace Graduation Approvals', icon: Award },
-          { id: 'commission', label: 'Commission & Pricing Settings', icon: Settings },
-          { id: 'trust', label: 'Trust & Fraud Monitor', icon: ShieldAlert },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg font-medium text-sm border-b-2 transition-all ${
-                isActive ? 'border-slate-900 text-slate-900 font-bold bg-slate-50' : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* TAB: MODERATION */}
-      {activeTab === 'moderation' && (
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
-          <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-slate-900 text-base">Submitted Startups Moderation Queue</h3>
-            <span className="text-xs font-mono text-slate-500">{products.length} products listed</span>
+        <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm space-y-1">
+          <span className="text-xs font-bold text-gray-400 uppercase">Graduated Products</span>
+          <div className="text-2xl font-extrabold text-purple-600">
+            {products.filter((p) => p.isGraduatedToMarketplace).length}
           </div>
+          <p className="text-[11px] text-gray-500">Marketplace Listed</p>
+        </div>
+      </div>
 
-          <div className="overflow-x-auto border border-slate-200 rounded-lg">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-700 font-mono uppercase text-[10px] border-b border-slate-200">
-                <tr>
-                  <th className="p-3">Product / Startup</th>
-                  <th className="p-3">Founder</th>
-                  <th className="p-3">Stage</th>
-                  <th className="p-3">Price</th>
-                  <th className="p-3">Validation Score</th>
-                  <th className="p-3">Moderation Status</th>
-                  <th className="p-3">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-sans">
-                {products.map((p) => (
-                  <tr key={p.id}>
-                    <td className="p-3 font-semibold text-slate-900">
-                      <div>{p.name}</div>
-                      <div className="text-[11px] text-slate-500 font-normal">{p.category}</div>
-                    </td>
-                    <td className="p-3 text-slate-600">
-                      <div>{p.founderName}</div>
-                      <div className="text-[11px] font-mono text-slate-400">{p.companyName}</div>
-                    </td>
-                    <td className="p-3"><StageBadge stage={p.stage} /></td>
-                    <td className="p-3 font-mono font-bold text-slate-900">₹{formatCurrency(p.price)}</td>
-                    <td className="p-3 font-mono font-bold text-blue-600">{p.validationScore.overall}/100</td>
-                    <td className="p-3">
-                      {p.isApprovedByAdmin ? (
-                        <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-mono font-bold">APPROVED</span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-mono font-bold">PENDING</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <button
-                        onClick={() => handleApproveToggle(p.id, p.isApprovedByAdmin)}
-                        className={`px-3 py-1 rounded text-xs font-medium ${
-                          p.isApprovedByAdmin
-                            ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                        }`}
-                      >
-                        {p.isApprovedByAdmin ? 'Reject / Hide' : 'Approve Submission'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-gray-200 pb-px">
+        <button
+          onClick={() => setActiveTab('moderation')}
+          className={`px-5 py-3 text-xs font-extrabold cursor-pointer border-b-2 transition-all flex items-center gap-2 ${
+            activeTab === 'moderation'
+              ? 'text-[#0f1628] border-[#489cff] bg-white rounded-t-2xl shadow-sm'
+              : 'text-gray-500 border-transparent hover:text-black'
+          }`}
+        >
+          <ShieldAlert className="w-4 h-4 text-[#489cff]" />
+          <span>Startup Campaign Moderation</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('commission')}
+          className={`px-5 py-3 text-xs font-extrabold cursor-pointer border-b-2 transition-all flex items-center gap-2 ${
+            activeTab === 'commission'
+              ? 'text-[#0f1628] border-[#489cff] bg-white rounded-t-2xl shadow-sm'
+              : 'text-gray-500 border-transparent hover:text-black'
+          }`}
+        >
+          <Percent className="w-4 h-4 text-emerald-600" />
+          <span>5–7% Commission Management</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('logistics')}
+          className={`px-5 py-3 text-xs font-extrabold cursor-pointer border-b-2 transition-all flex items-center gap-2 ${
+            activeTab === 'logistics'
+              ? 'text-[#0f1628] border-[#489cff] bg-white rounded-t-2xl shadow-sm'
+              : 'text-gray-500 border-transparent hover:text-black'
+          }`}
+        >
+          <Truck className="w-4 h-4 text-amber-600" />
+          <span>Platform Logistics Dispatches</span>
+        </button>
+      </div>
+
+      {/* Tab 1: Moderation */}
+      {activeTab === 'moderation' && (
+        <div className="bg-white border border-gray-200 rounded-3xl p-6 space-y-4 shadow-sm">
+          <h3 className="font-extrabold text-black text-lg">Campaign Approvals & Graduation</h3>
+          <div className="space-y-4">
+            {products.map((product) => (
+              <div key={product.id} className="p-4 rounded-2xl border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/50">
+                <div className="flex items-center gap-3">
+                  <img src={product.images[0]} alt={product.name} className="w-14 h-14 object-cover rounded-xl border border-gray-200" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-black text-sm">{product.name}</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#0f1628] text-white">{product.startupType}</span>
+                      <StageBadge stage={product.stage} />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Company: {product.companyName} | Score: <strong className="text-black">{product.validationScore.overall}/100</strong> | CPR: <strong className="text-emerald-600">{(product.cartPurchaseRate || 18.5).toFixed(1)}%</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleApproveToggle(product.id, product.isApprovedByAdmin)}
+                    className={`px-3.5 py-1.5 rounded-xl font-bold text-xs cursor-pointer ${
+                      product.isApprovedByAdmin
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : 'bg-amber-100 text-amber-800 border border-amber-300'
+                    }`}
+                  >
+                    {product.isApprovedByAdmin ? 'Approved' : 'Pending Review'}
+                  </button>
+
+                  {!product.isGraduatedToMarketplace && (
+                    <button
+                      onClick={() => handleGraduateApprove(product.id)}
+                      className="px-3.5 py-1.5 rounded-xl bg-[#489cff] hover:bg-blue-600 text-white font-bold text-xs cursor-pointer shadow-sm"
+                    >
+                      Approve Marketplace (6%)
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* TAB: GRADUATION */}
-      {activeTab === 'graduation' && (
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-slate-900 text-base">Marketplace Graduation Queue</h3>
-            <p className="text-xs text-slate-500">
-              Review startups that have requested graduation into the Curated Marketplace and award the <strong>Validated Product</strong> badge.
-            </p>
+      {/* Tab 2: Commission Management */}
+      {activeTab === 'commission' && (
+        <div className="bg-white border border-gray-200 rounded-3xl p-6 space-y-6 shadow-sm">
+          <div>
+            <h3 className="font-extrabold text-black text-lg">Marketplace Commission Rates (5% – 7%)</h3>
+            <p className="text-xs text-gray-500">Configure custom commission rates per startup upon marketplace graduation.</p>
           </div>
 
           <div className="space-y-3">
-            {products
-              .filter((p) => p.validationScore.overall >= 75 && !p.isGraduatedToMarketplace)
-              .map((p) => (
-                <div key={p.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <img src={p.images[0]} alt={p.name} className="w-14 h-14 object-cover rounded-lg border" />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold text-slate-900 text-base">{p.name}</h4>
-                        <span className="font-mono text-xs text-emerald-700 font-bold">Score: {p.validationScore.overall}/100</span>
-                      </div>
-                      <p className="text-xs text-slate-500 font-mono mt-0.5">
-                        Orders: {p.ordersCount} | Rating: 4.8★ | Refund rate: {p.refundRate}%
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => handleGraduateApprove(p.id)}
-                    className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 shadow-sm flex items-center gap-1.5"
-                  >
-                    <Award className="w-4 h-4" />
-                    Approve Graduation & Grant Badge
-                  </button>
+            {products.map((product) => (
+              <div key={product.id} className="p-4 rounded-2xl border border-gray-200 flex items-center justify-between bg-gray-50">
+                <div>
+                  <div className="font-bold text-black text-sm">{product.name} ({product.companyName})</div>
+                  <div className="text-xs text-gray-500">Stage: {product.stage} • Current Commission: <strong className="text-emerald-600">{product.commissionRate || 6}%</strong></div>
                 </div>
-              ))}
 
-            {products.filter((p) => p.validationScore.overall >= 75 && !p.isGraduatedToMarketplace).length === 0 && (
-              <div className="py-8 text-center text-xs text-slate-500 font-mono">
-                No pending graduation requests. All eligible products are reviewed.
+                <div className="flex items-center gap-2">
+                  {[5, 6, 7].map((rate) => (
+                    <button
+                      key={rate}
+                      onClick={() => handleSetCommission(product.id, rate)}
+                      className={`px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer transition-all ${
+                        (product.commissionRate || 6) === rate
+                          ? 'bg-[#0f1628] text-white shadow-md'
+                          : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      {rate}% Fee
+                    </button>
+                  ))}
+                </div>
               </div>
-            )}
+            ))}
           </div>
         </div>
       )}
 
-      {/* TAB: COMMISSION */}
-      {activeTab === 'commission' && (
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-slate-900 text-base">Marketplace Commission & Package Settings</h3>
-            <p className="text-xs text-slate-500">Configure global marketplace commission rates and validation packages.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <h4 className="font-semibold text-slate-900 text-sm">Default Marketplace Commission Rate</h4>
-              <div className="flex items-center gap-3">
-                {[5, 7, 10].map((rate) => (
-                  <button
-                    key={rate}
-                    onClick={() => handleCommissionChange(rate)}
-                    className={`px-5 py-2.5 rounded-lg font-mono font-bold text-sm border transition-all ${
-                      config.defaultCommissionRate === rate
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    {rate}% Commission
-                  </button>
-                ))}
+      {/* Tab 3: Logistics Dispatches */}
+      {activeTab === 'logistics' && (
+        <div className="bg-white border border-gray-200 rounded-3xl p-6 space-y-4 shadow-sm">
+          <h3 className="font-extrabold text-black text-lg">Venturely Platform Logistics Supervision</h3>
+          <div className="space-y-3">
+            {orders.map((ord) => (
+              <div key={ord.id} className="p-4 rounded-2xl border border-gray-200 flex justify-between items-center bg-gray-50 text-xs">
+                <div>
+                  <div className="font-bold text-black">Order #{ord.orderNumber} — {ord.productName}</div>
+                  <div className="text-gray-500">Buyer: {ord.customerName} ({ord.customerEmail}) • Mode: {ord.logisticsModel}</div>
+                  <div className="text-gray-500 font-mono">Tracking: {ord.trackingNumber || 'VNT-DISPATCH-991'}</div>
+                </div>
+                <div className="text-right">
+                  <span className="font-extrabold text-emerald-600 text-sm">{formatCurrency(ord.amount)}</span>
+                  <div className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">{ord.status}</div>
+                </div>
               </div>
-              <p className="text-xs text-slate-500">
-                Current active commission: <strong className="text-slate-900">{config.defaultCommissionRate}%</strong> charged on marketplace sales.
-              </p>
-            </div>
-
-            <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
-              <h4 className="font-bold text-slate-900">Validation Package Tier Pricing</h4>
-              <div className="space-y-2 font-mono">
-                <div className="flex justify-between p-2 bg-white rounded border"><span>Idea Validation Tier:</span><strong>₹1,999</strong></div>
-                <div className="flex justify-between p-2 bg-white rounded border"><span>Launch Validation Tier:</span><strong>₹5,999</strong></div>
-                <div className="flex justify-between p-2 bg-white rounded border"><span>Growth & D2C Tier:</span><strong>₹14,999</strong></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB: TRUST & FRAUD */}
-      {activeTab === 'trust' && (
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-slate-900 text-base">Trust, Integrity & Anti-Gaming Monitor</h3>
-            <p className="text-xs text-slate-500">Platform telemetry continuously verifies traffic authenticity to prevent score manipulation.</p>
-          </div>
-
-          <div className="space-y-3 font-mono text-xs">
-            <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 flex items-center justify-between text-emerald-900">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Validation Scores Verification: 100% Organic Signals Verified</span>
-              </div>
-              <span className="font-bold">CLEAN</span>
-            </div>
-
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between text-slate-700">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                <span>Review Authenticity Check: Verified Buyer Email Required</span>
-              </div>
-              <span className="font-bold text-blue-600">ENFORCED</span>
-            </div>
+            ))}
           </div>
         </div>
       )}

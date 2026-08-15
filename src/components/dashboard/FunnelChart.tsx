@@ -1,34 +1,35 @@
 import React from 'react';
 import { Product } from '@/types';
 import { formatNumber } from '@/lib/format';
-import { ArrowDown, Filter } from 'lucide-react';
+import { Filter, BarChart3 } from 'lucide-react';
 
 export function FunnelChart({ product }: { product: Product }) {
-  const impressions = Math.round((product.views || 100) * 2.4);
+  const impressions = product.adMetrics?.impressions || Math.round((product.views || 100) * 2.4);
   const views = product.views || 1;
-  const interested = (product.waitlistCount || 0) + (product.interestVotes || 0);
-  const addToCart = Math.round(product.ordersCount * 1.8 + product.preOrdersCount * 1.5 + 5);
-  const checkoutStarted = Math.round(product.ordersCount * 1.25 + product.preOrdersCount * 1.1 + 2);
-  const purchases = product.ordersCount || product.preOrdersCount || 0;
+  const waitlists = product.waitlistCount || 0;
+  const addToCart = product.cartAdditionsCount || 420;
+  const checkoutStarted = product.checkoutInitiatedCount || 160;
+  const purchases = product.preOrdersCount || product.ordersCount || 0;
+  const cpr = product.cartPurchaseRate || 18.5;
 
   const funnelSteps = [
-    { label: 'Impressions', count: impressions, pct: 100, color: 'bg-slate-800' },
+    { label: 'Ad Impressions', count: impressions, pct: 100, color: 'bg-slate-800' },
     { label: 'Product Views', count: views, pct: Math.round((views / impressions) * 100), color: 'bg-slate-700' },
-    { label: 'Waitlist / Interest', count: interested, pct: Math.round((interested / Math.max(views, 1)) * 100), color: 'bg-blue-600' },
+    { label: 'Waitlist / Interest', count: waitlists, pct: Math.round((waitlists / Math.max(views, 1)) * 100), color: 'bg-[#489cff]' },
     { label: 'Added to Cart', count: addToCart, pct: Math.round((addToCart / Math.max(views, 1)) * 100), color: 'bg-indigo-600' },
     { label: 'Checkout Started', count: checkoutStarted, pct: Math.round((checkoutStarted / Math.max(addToCart, 1)) * 100), color: 'bg-purple-600' },
-    { label: 'Purchase / Order', count: purchases, pct: Math.round((purchases / Math.max(checkoutStarted, 1)) * 100), color: 'bg-emerald-600' },
+    { label: 'Validated Pre-Order / Purchase', count: purchases, pct: Math.round((purchases / Math.max(checkoutStarted, 1)) * 100), color: 'bg-emerald-600' },
   ];
 
   return (
-    <div className="rounded-xl bg-white border border-slate-200 p-6 shadow-sm space-y-4">
-      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+    <div className="rounded-3xl bg-white border border-gray-200 p-6 shadow-sm space-y-4">
+      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
         <div className="flex items-center gap-2">
-          <Filter className="w-5 h-5 text-blue-600" />
-          <h3 className="font-bold text-slate-900 text-base">Validation Conversion Funnel</h3>
+          <Filter className="w-5 h-5 text-[#489cff]" />
+          <h3 className="font-extrabold text-black text-base">Validation Conversion Funnel</h3>
         </div>
-        <span className="text-xs font-mono text-slate-500">
-          Overall Conversion: <strong className="text-slate-900">{product.conversionRate}%</strong>
+        <span className="text-xs text-gray-500 font-bold">
+          Cart Purchase Rate (CPR): <strong className="text-emerald-600">{cpr.toFixed(1)}%</strong>
         </span>
       </div>
 
@@ -38,15 +39,15 @@ export function FunnelChart({ product }: { product: Product }) {
           return (
             <div key={step.label} className="space-y-1">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-700">{step.label}</span>
-                <div className="flex items-center gap-3 font-mono">
-                  <span className="text-slate-900 font-bold">{formatNumber(step.count)} users</span>
-                  <span className="text-slate-500 text-[11px]">({step.pct}%)</span>
+                <span className="font-bold text-gray-700">{step.label}</span>
+                <div className="flex items-center gap-3 font-semibold">
+                  <span className="text-black font-extrabold">{formatNumber(step.count)} users</span>
+                  <span className="text-gray-400 text-[11px]">({step.pct}%)</span>
                 </div>
               </div>
-              <div className="w-full bg-slate-100 rounded-lg h-7 p-1 flex items-center">
+              <div className="w-full bg-gray-100 rounded-xl h-7 p-1 flex items-center">
                 <div
-                  className={`h-full rounded-md ${step.color} text-white font-mono text-[11px] font-semibold flex items-center justify-end px-3 shadow-sm transition-all`}
+                  className={`h-full rounded-lg ${step.color} text-white font-extrabold text-[11px] flex items-center justify-end px-3 shadow-sm transition-all`}
                   style={{ width: `${widthPct}%` }}
                 >
                   {formatNumber(step.count)}

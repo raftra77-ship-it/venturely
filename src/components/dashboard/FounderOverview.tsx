@@ -2,81 +2,118 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Product, Order } from '@/types';
+import { Product, Order, LogisticsModel, ValidationPackageTier } from '@/types';
 import { useRole } from '@/context/RoleContext';
-import { getProducts, getOrders, updateOrderStatus, graduateProductToMarketplace } from '@/lib/data';
-import { RecommendationCard } from './RecommendationCard';
+import { getProducts, getOrders, updateProduct } from '@/lib/data';
 import { ValidationScoreCard } from './ValidationScoreCard';
+import { RecommendationCard } from './RecommendationCard';
 import { FunnelChart } from './FunnelChart';
 import { StageBadge } from '../product/StageBadge';
 import { formatCurrency, formatNumber } from '@/lib/format';
+import { VALIDATION_PACKAGE_TIERS, LOGISTICS_OPTIONS } from '@/lib/constants';
 import {
   TrendingUp,
   Eye,
   Users,
   ShoppingBag,
   DollarSign,
-  PackageCheck,
   Megaphone,
   Award,
-  MessageSquare,
   Box,
   PlusCircle,
   CheckCircle2,
   AlertTriangle,
   ArrowUpRight,
   ShieldCheck,
-  RotateCcw,
+  Flame,
+  Truck,
+  Percent,
+  Clock,
+  Zap,
+  BarChart3,
+  Layers,
+  Settings,
+  Sparkles,
 } from 'lucide-react';
 
 export function FounderOverview() {
-  const { activeProductId, setActiveProductId, showToast } = useRole();
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'marketing' | 'orders' | 'inventory' | 'feedback' | 'graduation'>('overview');
+  const { activeProductId, setActiveProductId, showToast, refreshProducts } = useRole();
+  const [activeTab, setActiveTab] = useState<'analytics' | 'adpackages' | 'fomo' | 'logistics' | 'inventory'>('analytics');
   const [productsList, setProductsList] = useState<Product[]>(getProducts());
-  const [adSpendInput, setAdSpendInput] = useState('10000');
-  const [campaignName, setCampaignName] = useState('Validation Promo Wave 1');
 
   const currentProduct = productsList.find((p) => p.id === activeProductId) || productsList[0];
-  const productOrders = getOrders(currentProduct?.id);
+  const productOrders = getOrders().filter(o => o.productId === currentProduct?.id);
 
   if (!currentProduct) {
     return <div className="p-8 text-center">No products found. Create one first.</div>;
   }
 
-  const isIdeaOrConcept = currentProduct.stage === '0_IDEA' || currentProduct.stage === '1_CONCEPT';
-  const isPrototypeOrMVP = currentProduct.stage === '2_PROTOTYPE' || currentProduct.stage === '3_MVP';
-  const isD2C = currentProduct.stage === '4_EARLY_PRODUCT' || currentProduct.stage === '5_D2C_LAUNCH' || currentProduct.stage === '6_VALIDATED' || currentProduct.stage === '7_MARKETPLACE';
+  const handleLogisticsToggle = (mode: LogisticsModel) => {
+    const updated = updateProduct(currentProduct.id, { logisticsModel: mode });
+    if (updated) {
+      setProductsList(getProducts());
+      refreshProducts();
+      showToast(`Logistics mode updated to ${mode === 'VENTURELY_SUPPORTED' ? 'Venturely Platform Logistics' : 'Merchant Self-Fulfillment'}`);
+    }
+  };
 
-  const sellThrough = currentProduct.inventoryTotal > 0 ? Math.round((currentProduct.inventorySold / currentProduct.inventoryTotal) * 100) : 0;
+  const handleActivateAdPackage = (tier: ValidationPackageTier) => {
+    const pkg = VALIDATION_PACKAGE_TIERS[tier];
+    const updated = updateProduct(currentProduct.id, {
+      adMetrics: {
+        activePackage: tier,
+        adSpend: pkg.adSpendAllocation,
+        impressions: pkg.targetVisitors * 12,
+        clicks: pkg.targetVisitors,
+        ctr: 4.2,
+        cpc: Math.round((pkg.adSpendAllocation / pkg.targetVisitors) * 10) / 10,
+        cac: currentProduct.cac || 480,
+        roas: 3.8,
+      },
+    });
+    if (updated) {
+      setProductsList(getProducts());
+      refreshProducts();
+      showToast(`Activated ${pkg.packageName}! Managed ads campaign initiated.`);
+    }
+  };
 
   const handleGraduateRequest = () => {
-    graduateProductToMarketplace(currentProduct.id);
-    setProductsList(getProducts());
-    showToast(`Graduation request approved! ${currentProduct.name} is now listed in Curated Marketplace.`);
+    const updated = updateProduct(currentProduct.id, {
+      isGraduatedToMarketplace: true,
+      stage: '6_MARKETPLACE',
+      commissionRate: 6,
+    });
+    if (updated) {
+      setProductsList(getProducts());
+      refreshProducts();
+      showToast(`Graduation approved! ${currentProduct.name} is now listed in Curated Marketplace with 6% commission.`);
+    }
   };
 
-  const handleStatusChange = (orderId: string, status: Order['status']) => {
-    updateOrderStatus(orderId, status);
-    showToast(`Order status updated to ${status}`);
-  };
+  const cpr = currentProduct.cartPurchaseRate || 18.5;
+  const sellThrough = currentProduct.inventoryTotal > 0 ? Math.round((currentProduct.inventorySold / currentProduct.inventoryTotal) * 100) : 0;
 
   return (
     <div className="space-y-8">
       {/* Header & Product Switcher Bar */}
-      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white border border-gray-200 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <img
             src={currentProduct.images[0]}
             alt={currentProduct.name}
-            className="w-16 h-16 object-cover rounded-lg border border-slate-200"
+            className="w-16 h-16 object-cover rounded-2xl border border-gray-200"
           />
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900">{currentProduct.name}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-extrabold text-black">{currentProduct.name}</h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#0f1628] text-white">
+                {currentProduct.startupType}
+              </span>
               <StageBadge stage={currentProduct.stage} />
             </div>
-            <p className="text-xs text-slate-500 mt-1 font-mono">
-              Company: <strong className="text-slate-700">{currentProduct.companyName}</strong> | Founder: {currentProduct.founderName}
+            <p className="text-xs text-gray-500 mt-1">
+              Company: <strong className="text-black">{currentProduct.companyName}</strong> | Founder: {currentProduct.founderName}
             </p>
           </div>
         </div>
@@ -84,15 +121,15 @@ export function FounderOverview() {
         {/* Switcher & Action */}
         <div className="flex items-center gap-3">
           <div className="space-y-1">
-            <label className="block text-[11px] font-mono text-slate-400 uppercase">Select Active Startup</label>
+            <label className="block text-[11px] font-bold text-gray-400 uppercase">Select Startup</label>
             <select
               value={currentProduct.id}
               onChange={(e) => setActiveProductId(e.target.value)}
-              className="px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-medium bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+              className="px-3.5 py-2 rounded-xl border border-gray-300 text-xs font-semibold bg-gray-50 text-black focus:outline-none focus:border-[#489cff]"
             >
               {productsList.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} ({p.stage.replace('_', ' ')})
+                  {p.name} ({p.startupType} • {p.stage.replace('_', ' ')})
                 </option>
               ))}
             </select>
@@ -100,502 +137,376 @@ export function FounderOverview() {
 
           <Link
             href="/founder/new"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-slate-900 text-white font-medium text-xs hover:bg-blue-600 transition-colors shadow-sm self-end"
+            className="smytten-btn text-xs py-2 px-3.5 flex items-center gap-1 bg-[#489cff] hover:bg-blue-600 self-end"
           >
             <PlusCircle className="w-4 h-4" />
-            New Startup
+            <span>New Campaign</span>
           </Link>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-200 gap-1 overflow-x-auto pb-1 text-sm font-medium">
-        {[
-          { id: 'overview', label: 'Dashboard Overview', icon: TrendingUp },
-          { id: 'analytics', label: 'Funnel & Telemetry', icon: Eye },
-          { id: 'marketing', label: 'Marketing Center', icon: Megaphone },
-          { id: 'orders', label: `Orders (${productOrders.length})`, icon: ShoppingBag },
-          { id: 'inventory', label: 'Inventory Health', icon: Box },
-          { id: 'feedback', label: 'Customer Feedback', icon: MessageSquare },
-          { id: 'graduation', label: 'Marketplace Graduation', icon: Award },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg border-b-2 transition-all whitespace-nowrap ${
-                isActive
-                  ? 'border-slate-900 text-slate-900 font-bold bg-slate-50'
-                  : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50/50'
-              }`}
-            >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+      {/* Primary Key Metric Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Metric 1: Cart Purchase Rate */}
+        <div className="p-5 rounded-2xl bg-white border border-gray-200 space-y-1 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-500 uppercase">Cart Purchase Rate (CPR)</span>
+            <BarChart3 className="w-4 h-4 text-[#489cff]" />
+          </div>
+          <div className="text-2xl font-extrabold text-black">{cpr.toFixed(1)}%</div>
+          <div className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+            <TrendingUp className="w-3 h-3" /> Target &gt; 12.0% Met
+          </div>
+        </div>
+
+        {/* Metric 2: Managed Ad Spend & CAC */}
+        <div className="p-5 rounded-2xl bg-white border border-gray-200 space-y-1 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-500 uppercase">Ad CAC & Spend</span>
+            <Megaphone className="w-4 h-4 text-purple-600" />
+          </div>
+          <div className="text-2xl font-extrabold text-black">{formatCurrency(currentProduct.adMetrics?.cac || currentProduct.cac)}</div>
+          <div className="text-[11px] text-gray-500">
+            Ad Budget: {formatCurrency(currentProduct.adMetrics?.adSpend || 14999)} ({currentProduct.adMetrics?.activePackage || 'GROWTH'})
+          </div>
+        </div>
+
+        {/* Metric 3: Batch Manufacturing Signal */}
+        <div className="p-5 rounded-2xl bg-white border border-gray-200 space-y-1 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-500 uppercase">Batch Signal</span>
+            <Box className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl font-extrabold text-emerald-600">{currentProduct.recommendedBatchSize || 500} Units</div>
+          <div className="text-[11px] text-gray-500">Breakeven: {currentProduct.breakevenUnits || 120} units</div>
+        </div>
+
+        {/* Metric 4: Logistics Model */}
+        <div className="p-5 rounded-2xl bg-white border border-gray-200 space-y-1 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-500 uppercase">Logistics Status</span>
+            <Truck className="w-4 h-4 text-amber-600" />
+          </div>
+          <div className="text-base font-extrabold text-black truncate">
+            {currentProduct.logisticsModel === 'VENTURELY_SUPPORTED' ? 'Platform Logistics (₹49)' : 'Merchant Self-Logistics'}
+          </div>
+          <div className="text-[11px] text-[#489cff] font-semibold">
+            {currentProduct.shippingEstimateDays || '3-4 Days Estimate'}
+          </div>
+        </div>
       </div>
 
-      {/* TAB CONTENT: OVERVIEW */}
-      {activeTab === 'overview' && (
-        <div className="space-y-8">
-          {/* Stage-Adaptive Key Metric Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
-              <span className="text-xs font-mono text-slate-400 uppercase">Validation Score</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold font-mono text-slate-900">{currentProduct.validationScore.overall}</span>
-                <span className="text-xs font-medium text-emerald-600 font-mono">/ 100</span>
-              </div>
-              <p className="text-[11px] text-slate-500">Platform demand signal</p>
-            </div>
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-gray-200 pb-px overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('analytics')}
+          className={`px-5 py-3 text-xs font-extrabold cursor-pointer border-b-2 transition-all flex items-center gap-2 ${
+            activeTab === 'analytics'
+              ? 'text-[#0f1628] border-[#489cff] bg-white rounded-t-2xl shadow-sm'
+              : 'text-gray-500 border-transparent hover:text-black'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4 text-[#489cff]" />
+          <span>Cart Conversion & Analytics</span>
+        </button>
 
-            <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
-              <span className="text-xs font-mono text-slate-400 uppercase">Product Views</span>
-              <div className="text-2xl font-bold font-mono text-slate-900">{formatNumber(currentProduct.views)}</div>
-              <p className="text-[11px] text-slate-500">{formatNumber(currentProduct.uniqueVisitors)} unique visitors</p>
-            </div>
+        <button
+          onClick={() => setActiveTab('adpackages')}
+          className={`px-5 py-3 text-xs font-extrabold cursor-pointer border-b-2 transition-all flex items-center gap-2 ${
+            activeTab === 'adpackages'
+              ? 'text-[#0f1628] border-[#489cff] bg-white rounded-t-2xl shadow-sm'
+              : 'text-gray-500 border-transparent hover:text-black'
+          }`}
+        >
+          <Megaphone className="w-4 h-4 text-purple-600" />
+          <span>Managed Validation Ads</span>
+        </button>
 
-            {isIdeaOrConcept ? (
-              <>
-                <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
-                  <span className="text-xs font-mono text-slate-400 uppercase">Waitlist Signups</span>
-                  <div className="text-2xl font-bold font-mono text-blue-600">{currentProduct.waitlistCount}</div>
-                  <p className="text-[11px] text-slate-500">Waitlist conversion: {((currentProduct.waitlistCount / Math.max(currentProduct.views, 1)) * 100).toFixed(1)}%</p>
-                </div>
+        <button
+          onClick={() => setActiveTab('fomo')}
+          className={`px-5 py-3 text-xs font-extrabold cursor-pointer border-b-2 transition-all flex items-center gap-2 ${
+            activeTab === 'fomo'
+              ? 'text-[#0f1628] border-[#489cff] bg-white rounded-t-2xl shadow-sm'
+              : 'text-gray-500 border-transparent hover:text-black'
+          }`}
+        >
+          <Flame className="w-4 h-4 text-amber-500" />
+          <span>Waitlist & High-FOMO Engine</span>
+        </button>
 
-                <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
-                  <span className="text-xs font-mono text-slate-400 uppercase">Interest Votes</span>
-                  <div className="text-2xl font-bold font-mono text-purple-600">{currentProduct.interestVotes}</div>
-                  <p className="text-[11px] text-slate-500">Audience interest signal</p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
-                  <span className="text-xs font-mono text-slate-400 uppercase">Total Orders / Pre-orders</span>
-                  <div className="text-2xl font-bold font-mono text-slate-900">{currentProduct.ordersCount || currentProduct.preOrdersCount}</div>
-                  <p className="text-[11px] text-emerald-700 font-medium font-mono">Conversion: {currentProduct.conversionRate}%</p>
-                </div>
+        <button
+          onClick={() => setActiveTab('logistics')}
+          className={`px-5 py-3 text-xs font-extrabold cursor-pointer border-b-2 transition-all flex items-center gap-2 ${
+            activeTab === 'logistics'
+              ? 'text-[#0f1628] border-[#489cff] bg-white rounded-t-2xl shadow-sm'
+              : 'text-gray-500 border-transparent hover:text-black'
+          }`}
+        >
+          <Truck className="w-4 h-4 text-emerald-600" />
+          <span>Logistics & Dispatch Mode</span>
+        </button>
 
-                <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
-                  <span className="text-xs font-mono text-slate-400 uppercase">Total Revenue</span>
-                  <div className="text-2xl font-bold font-mono text-emerald-700">₹{formatCurrency(currentProduct.totalRevenue)}</div>
-                  <p className="text-[11px] text-slate-500 font-mono">CAC: ₹{currentProduct.cac} | AOV: ₹{currentProduct.aov}</p>
-                </div>
-              </>
-            )}
-          </div>
+        <button
+          onClick={() => setActiveTab('inventory')}
+          className={`px-5 py-3 text-xs font-extrabold cursor-pointer border-b-2 transition-all flex items-center gap-2 ${
+            activeTab === 'inventory'
+              ? 'text-[#0f1628] border-[#489cff] bg-white rounded-t-2xl shadow-sm'
+              : 'text-gray-500 border-transparent hover:text-black'
+          }`}
+        >
+          <Percent className="w-4 h-4 text-[#489cff]" />
+          <span>Batch Forecast & 5-7% Commission</span>
+        </button>
+      </div>
 
-          {/* Core Feature 1: "What Should I Do Next?" Recommendation Engine */}
-          <RecommendationCard recommendations={currentProduct.recommendations} onTabChange={(t) => setActiveTab(t as any)} />
-
-          {/* Core Feature 2: Proprietary Validation Score Breakdown Card */}
-          <ValidationScoreCard score={currentProduct.validationScore} />
-
-          {/* Split Layout: Conversion Funnel & Inventory Telemetry */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <FunnelChart product={currentProduct} />
-
-            {/* Inventory & Batch Telemetry */}
-            <div className="rounded-xl bg-white border border-slate-200 p-6 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <Box className="w-5 h-5 text-emerald-600" />
-                  <h3 className="font-bold text-slate-900 text-base">Limited Batch Telemetry</h3>
-                </div>
-                <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
-                  {sellThrough >= 80 ? 'High Sell-Through' : 'Normal Pace'}
-                </span>
-              </div>
-
-              {currentProduct.inventoryTotal > 0 ? (
-                <div className="space-y-4 pt-1">
-                  <div className="flex items-baseline justify-between">
-                    <div>
-                      <span className="text-3xl font-extrabold font-mono text-slate-900">{currentProduct.inventorySold}</span>
-                      <span className="text-slate-500 text-sm font-mono"> / {currentProduct.inventoryTotal} units sold</span>
-                    </div>
-                    <span className="text-xl font-bold font-mono text-emerald-700">{sellThrough}%</span>
-                  </div>
-
-                  <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                    <div
-                      className="bg-emerald-600 h-full rounded-full transition-all"
-                      style={{ width: `${Math.min(sellThrough, 100)}%` }}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-xs pt-2">
-                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                      <span className="text-slate-500 font-mono">Sales Velocity</span>
-                      <div className="text-base font-bold font-mono text-slate-900">{currentProduct.salesVelocityPerDay || 6} units/day</div>
-                    </div>
-
-                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                      <span className="text-slate-500 font-mono">Est. Sellout Time</span>
-                      <div className="text-base font-bold font-mono text-slate-900">
-                        {Math.max(1, Math.round((currentProduct.inventoryTotal - currentProduct.inventorySold) / (currentProduct.salesVelocityPerDay || 6)))} days
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="py-6 text-center text-xs text-slate-500 space-y-2">
-                  <p>Idea stage product — limited batch inventory tracking activates in Stage 4.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB CONTENT: ANALYTICS & TELEMETRY */}
+      {/* Tab 1: Cart Conversion & Analytics */}
       {activeTab === 'analytics' && (
-        <div className="space-y-8">
-          <FunnelChart product={currentProduct} />
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-2">
-              <span className="text-xs font-mono text-slate-400 uppercase">Customer Acquisition Cost (CAC)</span>
-              <div className="text-2xl font-bold font-mono text-slate-900">₹{formatCurrency(currentProduct.cac)}</div>
-              <p className="text-xs text-slate-500">Platform benchmark: ₹450 - ₹850</p>
-            </div>
-
-            <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-2">
-              <span className="text-xs font-mono text-slate-400 uppercase">Average Order Value (AOV)</span>
-              <div className="text-2xl font-bold font-mono text-slate-900">₹{formatCurrency(currentProduct.aov)}</div>
-              <p className="text-xs text-slate-500">Gross revenue per buyer</p>
-            </div>
-
-            <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-2">
-              <span className="text-xs font-mono text-slate-400 uppercase">Return on Ad Spend (ROAS)</span>
-              <div className="text-2xl font-bold font-mono text-emerald-700">{currentProduct.roas}x</div>
-              <p className="text-xs text-slate-500">Direct promotional campaign yield</p>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-8 space-y-6">
+            <ValidationScoreCard score={currentProduct.validationScore} stage={currentProduct.stage} />
+            <FunnelChart product={currentProduct} />
           </div>
-        </div>
-      )}
-
-      {/* TAB CONTENT: MARKETING CENTER */}
-      {activeTab === 'marketing' && (
-        <div className="space-y-6 bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-          <div className="border-b border-slate-100 pb-4">
-            <h3 className="text-lg font-bold text-slate-900">Validation Marketing Center</h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Configure controlled social & platform validation exposure. Your advertising budget remains strictly separated from platform fees.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Campaign Config */}
-            <div className="md:col-span-1 bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4">
-              <h4 className="font-semibold text-slate-900 text-sm">Launch Validation Campaign</h4>
-
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Campaign Name</label>
-                  <input
-                    type="text"
-                    value={campaignName}
-                    onChange={(e) => setCampaignName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Ad Spend Budget (₹)</label>
-                  <input
-                    type="number"
-                    value={adSpendInput}
-                    onChange={(e) => setAdSpendInput(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none font-mono"
-                  />
-                </div>
-
-                {/* Cost Breakdown */}
-                <div className="pt-2 border-t border-slate-200 space-y-1 font-mono text-[11px]">
-                  <div className="flex justify-between text-slate-600">
-                    <span>Direct Ad Spend (100% to ads):</span>
-                    <span>₹{formatCurrency(Number(adSpendInput))}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>Platform Setup Fee (12%):</span>
-                    <span>₹{formatCurrency(Math.round(Number(adSpendInput) * 0.12))}</span>
-                  </div>
-                  <div className="flex justify-between font-bold text-slate-900 text-xs pt-1 border-t border-slate-300">
-                    <span>Total Campaign Budget:</span>
-                    <span className="text-blue-600">₹{formatCurrency(Number(adSpendInput) * 1.12)}</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => showToast(`Validation Campaign '${campaignName}' Launched!`)}
-                  className="w-full py-2.5 rounded-lg bg-slate-900 text-white font-medium hover:bg-blue-600 transition-colors shadow-sm mt-2"
-                >
-                  Deploy Validation Campaign
-                </button>
-              </div>
-            </div>
-
-            {/* Active Campaigns Table */}
-            <div className="md:col-span-2 space-y-3">
-              <h4 className="font-semibold text-slate-900 text-sm">Active & Past Validation Campaigns</h4>
-
-              <div className="overflow-x-auto border border-slate-200 rounded-lg">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-700 font-mono uppercase text-[10px] border-b border-slate-200">
-                    <tr>
-                      <th className="p-3">Campaign</th>
-                      <th className="p-3">Ad Spend</th>
-                      <th className="p-3">Platform Fee</th>
-                      <th className="p-3">Impressions</th>
-                      <th className="p-3">Conversions</th>
-                      <th className="p-3">CAC</th>
-                      <th className="p-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-800 font-mono">
-                    <tr>
-                      <td className="p-3 font-sans font-semibold">Early Adopter Meta Wave 1</td>
-                      <td className="p-3">₹15,000</td>
-                      <td className="p-3 text-slate-500">₹1,800</td>
-                      <td className="p-3">24,500</td>
-                      <td className="p-3 text-emerald-700 font-bold">22 orders</td>
-                      <td className="p-3">₹680</td>
-                      <td className="p-3"><span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px]">ACTIVE</span></td>
-                    </tr>
-                    <tr>
-                      <td className="p-3 font-sans font-semibold">LinkedIn Founder Retargeting</td>
-                      <td className="p-3">₹8,000</td>
-                      <td className="p-3 text-slate-500">₹960</td>
-                      <td className="p-3">9,800</td>
-                      <td className="p-3 text-emerald-700 font-bold">8 orders</td>
-                      <td className="p-3">₹1,000</td>
-                      <td className="p-3"><span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px]">COMPLETED</span></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB CONTENT: ORDERS */}
-      {activeTab === 'orders' && (
-        <div className="space-y-4 bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900">Order Management & Dispatch</h3>
-              <p className="text-xs text-slate-500">Track and fulfill validated customer orders.</p>
-            </div>
-            <span className="font-mono text-xs text-slate-600">Total Fulfilled: {productOrders.length} orders</span>
-          </div>
-
-          <div className="overflow-x-auto border border-slate-200 rounded-lg">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-700 font-mono uppercase text-[10px] border-b border-slate-200">
-                <tr>
-                  <th className="p-3">Order ID</th>
-                  <th className="p-3">Customer</th>
-                  <th className="p-3">Address</th>
-                  <th className="p-3">Amount</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-800">
-                {productOrders.map((ord) => (
-                  <tr key={ord.id}>
-                    <td className="p-3 font-mono font-bold text-slate-900">{ord.orderNumber}</td>
-                    <td className="p-3">
-                      <div className="font-semibold">{ord.customerName}</div>
-                      <div className="text-[11px] text-slate-500 font-mono">{ord.customerEmail}</div>
-                    </td>
-                    <td className="p-3 text-slate-600 max-w-xs truncate">{ord.shippingAddress}</td>
-                    <td className="p-3 font-mono font-bold text-emerald-700">₹{formatCurrency(ord.amount)}</td>
-                    <td className="p-3">
-                      <span className="px-2 py-0.5 rounded font-mono text-[10px] bg-blue-100 text-blue-800 font-semibold">
-                        {ord.status}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      {ord.status === 'PROCESSING' && (
-                        <button
-                          onClick={() => handleStatusChange(ord.id, 'SHIPPED')}
-                          className="px-2.5 py-1 rounded bg-slate-900 text-white text-[11px] font-medium hover:bg-blue-600"
-                        >
-                          Mark Shipped
-                        </button>
-                      )}
-                      {ord.status === 'SHIPPED' && (
-                        <button
-                          onClick={() => handleStatusChange(ord.id, 'DELIVERED')}
-                          className="px-2.5 py-1 rounded bg-emerald-600 text-white text-[11px] font-medium hover:bg-emerald-700"
-                        >
-                          Mark Delivered
-                        </button>
-                      )}
-                      {ord.status === 'DELIVERED' && (
-                        <span className="text-[11px] text-emerald-700 font-medium">✓ Completed</span>
-                      )}
-                    </td>
-                  </tr>
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-white border border-gray-200 rounded-3xl p-6 space-y-4 shadow-sm">
+              <h3 className="font-extrabold text-black text-base">Key Recommendations</h3>
+              <div className="space-y-4">
+                {currentProduct.recommendations.map((rec) => (
+                  <RecommendationCard key={rec.id} recommendation={rec} />
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* TAB CONTENT: INVENTORY */}
-      {activeTab === 'inventory' && (
-        <div className="space-y-6 bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-          <div className="border-b border-slate-100 pb-4 flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900">Inventory Control & Batch Forecasting</h3>
-              <p className="text-xs text-slate-500">Monitor remaining stock, sales velocity, and reorder thresholds.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-medium text-slate-600">Health:</span>
-              <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                HEALTHY (28% remaining)
+      {/* Tab 2: Managed Validation Ads */}
+      {activeTab === 'adpackages' && (
+        <div className="space-y-8">
+          <div className="bg-white border border-gray-200 rounded-3xl p-6 space-y-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+              <div>
+                <h3 className="text-xl font-extrabold text-black">Managed Meta & Google Ad Campaigns</h3>
+                <p className="text-xs text-gray-500">Run targeted advertising to test real audience willingness-to-pay.</p>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-purple-50 text-purple-700 font-bold text-xs">
+                Active Package: {currentProduct.adMetrics?.activePackage || 'GROWTH'}
               </span>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-mono">
-            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <span className="text-slate-500">Initial Batch Size</span>
-              <div className="text-xl font-bold text-slate-900 mt-1">{currentProduct.inventoryTotal} units</div>
-            </div>
-            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <span className="text-slate-500">Units Fulfilled</span>
-              <div className="text-xl font-bold text-emerald-700 mt-1">{currentProduct.inventorySold} units</div>
-            </div>
-            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <span className="text-slate-500">Remaining Inventory</span>
-              <div className="text-xl font-bold text-blue-600 mt-1">{currentProduct.inventoryTotal - currentProduct.inventorySold} units</div>
-            </div>
-            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <span className="text-slate-500">Suggested Next Batch</span>
-              <div className="text-xl font-bold text-purple-600 mt-1">250 units</div>
-            </div>
-          </div>
-        </div>
-      )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {Object.values(VALIDATION_PACKAGE_TIERS).map((pkg) => {
+                const isActive = currentProduct.adMetrics?.activePackage === pkg.tier;
+                return (
+                  <div
+                    key={pkg.tier}
+                    className={`p-6 rounded-2xl border flex flex-col justify-between space-y-5 transition-all ${
+                      isActive ? 'border-[#489cff] bg-blue-50/40 shadow-md ring-2 ring-[#489cff]/20' : 'border-gray-200 bg-white'
+                    }`}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-extrabold text-black text-base">{pkg.packageName}</h4>
+                        {isActive && <span className="text-[10px] font-extrabold bg-[#489cff] text-white px-2 py-0.5 rounded-full">ACTIVE</span>}
+                      </div>
+                      <div className="text-2xl font-extrabold text-black">{formatCurrency(pkg.price)}</div>
+                      <div className="text-xs text-gray-500 font-medium">Ad Credit Allocation: <strong className="text-emerald-600">{formatCurrency(pkg.adSpendAllocation)}</strong></div>
+                      <p className="text-xs text-gray-600">Targeting ~{formatNumber(pkg.targetVisitors)} live visitors across social & search channels.</p>
+                    </div>
 
-      {/* TAB CONTENT: FEEDBACK */}
-      {activeTab === 'feedback' && (
-        <div className="space-y-6 bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-          <div className="border-b border-slate-100 pb-4">
-            <h3 className="text-lg font-bold text-slate-900">Customer Feedback & Sentiment Matrix</h3>
-            <p className="text-xs text-slate-500">Aggregated insights captured during customer validation touchpoints.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-200 space-y-3">
-              <div className="flex items-center justify-between text-xs font-bold text-emerald-900">
-                <span>Top Loved Features</span>
-                <span>84% Sentiment</span>
-              </div>
-              <ul className="space-y-2 text-xs text-slate-700">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>"Immediate HRV calm effect during high stakes work."</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <span>"Minimalist titanium design looks like premium fashion eyewear."</span>
-                </li>
-              </ul>
-            </div>
-
-            <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200 space-y-3">
-              <div className="flex items-center justify-between text-xs font-bold text-amber-900">
-                <span>Top Requested Improvements</span>
-                <span>28% Interest</span>
-              </div>
-              <ul className="space-y-2 text-xs text-slate-700">
-                <li className="flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <span>"Extend battery case capacity to 5 days."</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <span>"Provide local optometrist prescription inserts."</span>
-                </li>
-              </ul>
+                    <button
+                      onClick={() => handleActivateAdPackage(pkg.tier)}
+                      disabled={isActive}
+                      className={`w-full py-2.5 rounded-xl font-bold text-xs cursor-pointer transition-all ${
+                        isActive
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                          : 'bg-[#0f1628] hover:bg-black text-white'
+                      }`}
+                    >
+                      {isActive ? 'Package Active & Tracking' : `Activate ${pkg.packageName}`}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
       )}
 
-      {/* TAB CONTENT: GRADUATION */}
-      {activeTab === 'graduation' && (
-        <div className="space-y-6 bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-          <div className="border-b border-slate-100 pb-4">
-            <h3 className="text-lg font-bold text-slate-900">Curated Marketplace Graduation</h3>
-            <p className="text-xs text-slate-500">
-              Graduate your validated product into Venturely&apos;s main Curated Marketplace to scale commercial distribution.
-            </p>
-          </div>
+      {/* Tab 3: Waitlist & High-FOMO Engine */}
+      {activeTab === 'fomo' && (
+        <div className="space-y-8">
+          <div className="bg-white border border-gray-200 rounded-3xl p-6 space-y-6 shadow-sm">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+              <div>
+                <h3 className="text-xl font-extrabold text-black">Waitlist & FOMO Urgency Controls</h3>
+                <p className="text-xs text-gray-500">Configure limited batch meters, price lock timers, and viral referral ranks.</p>
+              </div>
+              <Flame className="w-6 h-6 text-amber-500 animate-pulse" />
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <h4 className="font-semibold text-slate-900 text-sm">Graduation Requirement Checklist</h4>
-
-              <div className="space-y-2.5 text-xs">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200">
-                  <span>Validation Score ≥ 75/100</span>
-                  <span className="font-mono font-bold text-emerald-700">PASS ({currentProduct.validationScore.overall}/100)</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Limited Batch Counter */}
+              <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 space-y-3">
+                <div className="font-bold text-amber-900 text-sm">Limited Batch Counter</div>
+                <div className="text-2xl font-extrabold text-amber-950">
+                  {currentProduct.batchClaimedCount} / {currentProduct.limitedBatchSize} Slots Filled
                 </div>
-
-                <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200">
-                  <span>Minimum Orders Fulfilled ≥ 40</span>
-                  <span className="font-mono font-bold text-emerald-700">PASS ({currentProduct.ordersCount} orders)</span>
+                <div className="w-full bg-amber-200 rounded-full h-2">
+                  <div
+                    className="bg-amber-600 h-2 rounded-full"
+                    style={{ width: `${Math.min((currentProduct.batchClaimedCount / currentProduct.limitedBatchSize) * 100, 100)}%` }}
+                  />
                 </div>
-
-                <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200">
-                  <span>Customer Satisfaction Rating ≥ 4.2★</span>
-                  <span className="font-mono font-bold text-emerald-700">PASS (4.8★)</span>
-                </div>
-
-                <div className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-200">
-                  <span>Refund Rate ≤ 3.0%</span>
-                  <span className="font-mono font-bold text-emerald-700">PASS ({currentProduct.refundRate}%)</span>
-                </div>
+                <p className="text-xs text-amber-800">Scarcity signal boosts checkout intent by 32%.</p>
               </div>
 
-              {!currentProduct.isGraduatedToMarketplace ? (
+              {/* Price Lock Timer */}
+              <div className="p-5 rounded-2xl bg-blue-50 border border-blue-200 space-y-3">
+                <div className="font-bold text-blue-900 text-sm">Price-Lock Countdown</div>
+                <div className="text-2xl font-extrabold text-blue-950">48 Hours Remaining</div>
+                <p className="text-xs text-blue-800">Pre-order price locked at {formatCurrency(currentProduct.price)}. Retail price: {formatCurrency(currentProduct.expectedPrice || currentProduct.price * 1.3)}.</p>
+              </div>
+
+              {/* Live Viewers Surge */}
+              <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3">
+                <div className="font-bold text-emerald-900 text-sm">Live Viewer Surge</div>
+                <div className="text-2xl font-extrabold text-emerald-950">{currentProduct.currentViewersCount} Active Viewers</div>
+                <p className="text-xs text-emerald-800">Live social proof badge active on product landing page.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 4: Logistics & Dispatch Mode */}
+      {activeTab === 'logistics' && (
+        <div className="space-y-8">
+          <div className="bg-white border border-gray-200 rounded-3xl p-6 space-y-6 shadow-sm">
+            <div>
+              <h3 className="text-xl font-extrabold text-black">Fulfillment & Logistics Setup</h3>
+              <p className="text-xs text-gray-500">Choose how your validation pre-orders & prototype samples are shipped.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Option 1: Self Logistics */}
+              <div
+                onClick={() => handleLogisticsToggle('SELF_FULFILLED')}
+                className={`p-6 rounded-2xl border cursor-pointer transition-all space-y-4 ${
+                  currentProduct.logisticsModel === 'SELF_FULFILLED'
+                    ? 'border-[#489cff] bg-blue-50/40 ring-2 ring-[#489cff]/20'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <h4 className="font-extrabold text-black text-base">Merchant Self-Fulfillment</h4>
+                  {currentProduct.logisticsModel === 'SELF_FULFILLED' && (
+                    <CheckCircle2 className="w-5 h-5 text-[#489cff]" />
+                  )}
+                </div>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  You handle packaging and ship directly using your own courier account (Shiprocket, Delhivery, BlueDart, etc.).
+                </p>
+                <span className="inline-block text-xs font-bold text-emerald-600">₹0 Platform Logistics Fee</span>
+              </div>
+
+              {/* Option 2: Venturely Platform Logistics */}
+              <div
+                onClick={() => handleLogisticsToggle('VENTURELY_SUPPORTED')}
+                className={`p-6 rounded-2xl border cursor-pointer transition-all space-y-4 ${
+                  currentProduct.logisticsModel === 'VENTURELY_SUPPORTED'
+                    ? 'border-[#489cff] bg-blue-50/40 ring-2 ring-[#489cff]/20'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <h4 className="font-extrabold text-black text-base">Venturely Platform Logistics</h4>
+                  {currentProduct.logisticsModel === 'VENTURELY_SUPPORTED' && (
+                    <CheckCircle2 className="w-5 h-5 text-[#489cff]" />
+                  )}
+                </div>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Use Venturely integrated dispatch. Automated shipping label generation, doorstep pickup scheduling & live tracking.
+                </p>
+                <div className="text-xs font-bold text-purple-700">
+                  Surface: ₹49/unit • Express Air: ₹89/unit
+                </div>
+              </div>
+            </div>
+
+            {/* Orders Dispatch Simulator */}
+            <div className="pt-6 border-t border-gray-100 space-y-4">
+              <h4 className="font-bold text-black text-sm">Recent Validation Orders ({productOrders.length})</h4>
+              {productOrders.length > 0 ? (
+                <div className="space-y-3">
+                  {productOrders.map((ord) => (
+                    <div key={ord.id} className="p-4 rounded-xl bg-gray-50 border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                      <div>
+                        <div className="font-bold text-black">Order #{ord.orderNumber} — {ord.customerName}</div>
+                        <div className="text-gray-500">{ord.shippingAddress} • Mode: {ord.logisticsModel}</div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-extrabold text-[#489cff]">{formatCurrency(ord.amount)}</span>
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                          {ord.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 italic">No orders received yet for this product.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 5: Batch Forecast & 5-7% Commission Marketplace */}
+      {activeTab === 'inventory' && (
+        <div className="space-y-8">
+          <div className="bg-white border border-gray-200 rounded-3xl p-6 space-y-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+              <div>
+                <h3 className="text-xl font-extrabold text-black">Batch Manufacturing Signal & Marketplace Graduation</h3>
+                <p className="text-xs text-gray-500">Algorithmic demand recommendation and 5-7% commission marketplace onboarding.</p>
+              </div>
+              {currentProduct.isGraduatedToMarketplace ? (
+                <span className="px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" /> Graduated to Marketplace (6% Fee)
+                </span>
+              ) : (
                 <button
                   onClick={handleGraduateRequest}
-                  className="w-full py-3 rounded-lg bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors shadow-md flex items-center justify-center gap-2"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer transition-all shadow-md"
                 >
-                  <Award className="w-5 h-5" />
-                  Request Marketplace Graduation Now
+                  Graduate to Marketplace (5-7% Fee)
                 </button>
-              ) : (
-                <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-center space-y-1">
-                  <ShieldCheck className="w-6 h-6 text-emerald-600 mx-auto" />
-                  <div className="font-bold text-emerald-900 text-sm">Graduated & Listed in Marketplace</div>
-                  <p className="text-xs text-emerald-700">Your product has received the Validated Product badge.</p>
-                </div>
               )}
             </div>
 
-            <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-3 text-xs">
-              <h4 className="font-bold text-slate-900 text-sm">Marketplace Commission Transparency</h4>
-              <p className="text-slate-600 leading-relaxed">
-                When listed in the Curated Marketplace, Venturely charges a default platform commission of <strong>7%</strong> per sale.
-              </p>
-              <div className="p-3 bg-white rounded-lg border border-slate-200 font-mono space-y-1 text-[11px]">
-                <div className="flex justify-between"><span>Example Sale Price:</span><span>₹{formatCurrency(currentProduct.price)}</span></div>
-                <div className="flex justify-between text-slate-500"><span>Platform Commission (7%):</span><span>- ₹{formatCurrency(Math.round(currentProduct.price * 0.07))}</span></div>
-                <div className="flex justify-between font-bold text-emerald-700 border-t border-slate-200 pt-1"><span>Net Founder Payout:</span><span>₹{formatCurrency(Math.round(currentProduct.price * 0.93))}</span></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Batch Recommendation Box */}
+              <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-900 to-[#0f1628] text-white space-y-3">
+                <div className="text-xs text-emerald-400 font-bold uppercase tracking-wider">Batch Manufacturing Signal</div>
+                <div className="text-3xl font-extrabold">Prepare {currentProduct.recommendedBatchSize || 500} Units</div>
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  Based on your {cpr.toFixed(1)}% Cart Purchase Rate and pre-order velocity, this is your optimal primary production run to meet forecasted demand.
+                </p>
+                <div className="pt-2 text-xs text-emerald-300 font-semibold">
+                  Breakeven Volume: {currentProduct.breakevenUnits || 120} units
+                </div>
+              </div>
+
+              {/* Commission Calculator Box */}
+              <div className="p-6 rounded-2xl bg-gray-50 border border-gray-200 space-y-3">
+                <div className="text-xs text-gray-500 font-bold uppercase tracking-wider">Marketplace Economics</div>
+                <div className="text-3xl font-extrabold text-black">{currentProduct.commissionRate || 6}% Platform Commission</div>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Zero monthly subscription fees. Venturely takes a flat 5% to 7% commission only on completed marketplace purchases after graduation.
+                </p>
+                <div className="pt-2 text-xs text-[#489cff] font-semibold">
+                  Estimated Founder Payout: 94% of Gross Sales
+                </div>
               </div>
             </div>
           </div>

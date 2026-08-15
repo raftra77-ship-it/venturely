@@ -1,78 +1,57 @@
 import React from 'react';
 import Link from 'next/link';
 import { NextStepRecommendation } from '@/types';
-import { Lightbulb, ArrowRight, CheckCircle2, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Lightbulb, ArrowRight, TrendingUp } from 'lucide-react';
 
 interface RecommendationCardProps {
-  recommendations: NextStepRecommendation[];
+  recommendation?: NextStepRecommendation;
+  recommendations?: NextStepRecommendation[];
   onTabChange?: (tab: string) => void;
 }
 
-export function RecommendationCard({ recommendations, onTabChange }: RecommendationCardProps) {
-  if (!recommendations || recommendations.length === 0) return null;
+export function RecommendationCard({ recommendation, recommendations, onTabChange }: RecommendationCardProps) {
+  const topRec = recommendation || (recommendations && recommendations.length > 0 ? recommendations[0] : null);
 
-  const topRec = recommendations[0];
+  if (!topRec) return null;
 
   return (
-    <div className="rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-6 shadow-xl border border-slate-800 space-y-4 relative overflow-hidden">
-      {/* Decorative accent */}
-      <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-blue-500/10 blur-2xl pointer-events-none" />
-
+    <div className="rounded-3xl bg-gradient-to-br from-[#0f1628] via-slate-900 to-[#0f1628] text-white p-6 shadow-xl border border-slate-800 space-y-4 relative overflow-hidden">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-blue-400 text-xs font-semibold uppercase tracking-wider font-mono">
+        <div className="flex items-center gap-2 text-[#489cff] text-xs font-extrabold uppercase tracking-wider">
           <Lightbulb className="w-4 h-4 text-amber-400" />
-          <span>Core Recommendation Engine</span>
+          <span>Batch Forecast & Recommendation</span>
         </div>
-        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-blue-500/20 text-blue-300 border border-blue-400/30">
+        <span className="px-3 py-1 rounded-full text-[11px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-400/30">
           Priority: {topRec.priority}
         </span>
       </div>
 
       <div className="space-y-1">
-        <h3 className="text-xl font-bold tracking-tight text-white">{topRec.title}</h3>
-        <p className="text-sm font-mono text-emerald-400 font-medium">{topRec.statusHeadline}</p>
+        <h3 className="text-lg font-extrabold text-white">{topRec.title}</h3>
+        <p className="text-xs font-semibold text-emerald-400">{topRec.statusHeadline}</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-        <div className="bg-slate-800/80 p-4 rounded-lg border border-slate-700/80 space-y-1">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Recommended Action</span>
-          <p className="text-sm text-slate-200 leading-relaxed font-medium">
+      <div className="space-y-2 pt-1 text-xs">
+        <div className="bg-white/5 p-3.5 rounded-2xl border border-white/10 space-y-1">
+          <span className="font-bold text-gray-400 uppercase text-[10px]">Recommended Action</span>
+          <p className="text-gray-200 leading-relaxed font-medium">
             {topRec.recommendationText}
           </p>
         </div>
 
-        <div className="bg-slate-800/80 p-4 rounded-lg border border-slate-700/80 space-y-1">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Underlying Telemetry & Why</span>
-          <p className="text-xs text-slate-300 leading-relaxed">
+        <div className="bg-white/5 p-3.5 rounded-2xl border border-white/10 space-y-1">
+          <span className="font-bold text-gray-400 uppercase text-[10px]">Empirical Rationale</span>
+          <p className="text-gray-300 leading-relaxed">
             {topRec.whyText}
           </p>
         </div>
       </div>
 
-      <div className="pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="font-mono text-slate-400 flex items-center gap-1.5">
-          <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
-          <span>Based on: {topRec.metricsBasis}</span>
-        </div>
-
-        {topRec.actionRoute && onTabChange ? (
-          <button
-            onClick={() => {
-              if (topRec.actionRoute?.includes('tab=')) {
-                const tab = topRec.actionRoute.split('tab=')[1];
-                onTabChange(tab);
-              }
-            }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs transition-colors shadow-md"
-          >
-            <span>{topRec.actionText}</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        ) : (
-          <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium text-xs shadow-md">
-            <span>{topRec.actionText}</span>
-          </div>
-        )}
+      <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
+        <span className="text-gray-400 text-[11px] font-semibold">{topRec.metricsBasis}</span>
+        <span className="px-3 py-1.5 rounded-xl bg-[#489cff] text-white font-extrabold text-xs shadow-md">
+          {topRec.actionText}
+        </span>
       </div>
     </div>
   );
