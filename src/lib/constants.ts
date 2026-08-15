@@ -1,0 +1,111 @@
+import { ProductStage, StageInfo, PlatformConfig } from '@/types';
+
+export const STAGES: Record<ProductStage, StageInfo> = {
+  '0_IDEA': {
+    key: '0_IDEA',
+    label: 'Idea Validation',
+    shortLabel: 'IDEA',
+    description: 'Concept phase — measuring baseline market curiosity and audience interest.',
+    actionText: 'Join Waitlist',
+    badgeBg: 'bg-amber-50',
+    badgeText: 'text-amber-700',
+    badgeBorder: 'border-amber-200',
+  },
+  '1_CONCEPT': {
+    key: '1_CONCEPT',
+    label: 'Concept Design',
+    shortLabel: 'CONCEPT',
+    description: 'Detailed specs & visual concept — testing feature prioritization and positioning.',
+    actionText: 'Vote & Support',
+    badgeBg: 'bg-blue-50',
+    badgeText: 'text-blue-700',
+    badgeBorder: 'border-blue-200',
+  },
+  '2_PROTOTYPE': {
+    key: '2_PROTOTYPE',
+    label: 'Prototype Testing',
+    shortLabel: 'PROTOTYPE',
+    description: 'Functional prototype — validating usability, early feedback, and target pricing.',
+    actionText: 'Reserve Early Access',
+    badgeBg: 'bg-purple-50',
+    badgeText: 'text-purple-700',
+    badgeBorder: 'border-purple-200',
+  },
+  '3_MVP': {
+    key: '3_MVP',
+    label: 'Minimum Viable Product',
+    shortLabel: 'MVP',
+    description: 'Working v1 product — testing conversion funnel, pre-orders, and buyer intent.',
+    actionText: 'Pre-order MVP',
+    badgeBg: 'bg-indigo-50',
+    badgeText: 'text-indigo-700',
+    badgeBorder: 'border-indigo-200',
+  },
+  '4_EARLY_PRODUCT': {
+    key: '4_EARLY_PRODUCT',
+    label: 'Limited Batch Launch',
+    shortLabel: 'LIMITED LAUNCH',
+    description: 'Initial production run (e.g. 50-100 units) — testing sell-through rate & CAC.',
+    actionText: 'Claim Batch Unit',
+    badgeBg: 'bg-emerald-50',
+    badgeText: 'text-emerald-700',
+    badgeBorder: 'border-emerald-200',
+  },
+  '5_D2C_LAUNCH': {
+    key: '5_D2C_LAUNCH',
+    label: 'D2C Market Launch',
+    shortLabel: 'D2C LAUNCH',
+    description: 'Active commercial launch — measuring unit economics, AOV, ROAS, and velocity.',
+    actionText: 'Buy Product',
+    badgeBg: 'bg-teal-50',
+    badgeText: 'text-teal-700',
+    badgeBorder: 'border-teal-200',
+  },
+  '6_VALIDATED': {
+    key: '6_VALIDATED',
+    label: 'Validated Product',
+    shortLabel: 'VALIDATED',
+    description: 'Met platform validation benchmarks — backed by real customer demand & ratings.',
+    actionText: 'Order Validated',
+    badgeBg: 'bg-emerald-100',
+    badgeText: 'text-emerald-800 font-semibold',
+    badgeBorder: 'border-emerald-300',
+  },
+  '7_MARKETPLACE': {
+    key: '7_MARKETPLACE',
+    label: 'Marketplace Curated',
+    shortLabel: 'MARKETPLACE',
+    description: 'Graduated into curated marketplace — proven scaling product.',
+    actionText: 'Buy Now',
+    badgeBg: 'bg-slate-100',
+    badgeText: 'text-slate-800 font-semibold',
+    badgeBorder: 'border-slate-300',
+  },
+};
+
+export const PRODUCT_CATEGORIES = [
+  'Consumer Hardware',
+  'Health & Wellness',
+  'Workspace & Productivity',
+  'Audio & Wearables',
+  'Home & Kitchen',
+  'Sustainable & Eco',
+  'Apparel & Accessories',
+  'D2C Food & Beverage',
+];
+
+export const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
+  defaultCommissionRate: 7, // 7%
+  availableCommissionRates: [5, 7, 10],
+  validationPackages: {
+    idea: 1999,
+    launch: 5999,
+    growth: 14999,
+  },
+  graduationCriteria: {
+    minOrders: 50,
+    minValidationScore: 75,
+    minCustomerRating: 4.2,
+    maxRefundRate: 3.0,
+  },
+};
