@@ -1,88 +1,111 @@
-import { Product, ValidationScoreBreakdown } from '@/types';
+import { Product, ValidationScoreBreakdown, ValidationDecisionStatus } from '@/types';
 
 /**
- * Platform Validation Score Engine
- * Computes a transparent, data-driven validation signal (0-100)
- * based on empirical customer interaction data, CPR, and FOMO urgency.
+ * Venturely Composite Validation Scoring Engine
+ * Weighted Formula:
+ * 1. Conversion Rate (Cart Purchase Rate / Pre-order conversion): 35% weight
+ * 2. Ad CTR Lift vs Industry Benchmark (2.4% avg): 25% weight
+ * 3. Waitlist Velocity & Willingness to Pay: 20% weight
+ * 4. Unit Economics & CAC vs Margin: 20% weight
+ *
+ * Status Output:
+ * - Green (Score >= 75): Scale-Ready (Launch on Marketplace / Export Data)
+ * - Yellow (Score 50-74): Iterate & Re-test (Adjust pricing/creative)
+ * - Red (Score < 50): Don't Scale / Pivot (Revise positioning)
  */
 export function calculateValidationScore(product: Partial<Product>): ValidationScoreBreakdown {
-  const views = product.views || 1;
+  const views = product.views || 100;
+  const clicks = product.adMetrics?.clicks || product.uniqueVisitors || 50;
   const waitlists = product.waitlistCount || 0;
-  const orders = product.ordersCount || product.preOrdersCount || 0;
-  const inventoryTotal = product.inventoryTotal || 100;
-  const inventorySold = product.inventorySold || 0;
-  const cpr = product.cartPurchaseRate || 14.5;
-  const conversionRate = product.conversionRate || (orders / Math.max(views, 1)) * 100;
-  const batchClaimed = product.batchClaimedCount || 40;
-  const batchTotal = product.limitedBatchSize || 50;
+  const purchases = product.preOrdersCount || product.ordersCount || 0;
+  const cartAdds = product.cartAdditionsCount || Math.max(purchases * 2, 1);
+  const ctr = product.adMetrics?.ctr || 4.2;
+  const price = product.price || 1999;
+  const cac = product.cac || product.adMetrics?.cac || 450;
 
-  // 1. Demand Score (0-100)
-  const waitlistRatio = Math.min((waitlists / Math.max(views, 50)) * 500, 100);
-  const rawDemand = Math.min(views / 300, 40) + waitlistRatio * 0.6;
-  const demand = Math.round(Math.min(Math.max(rawDemand, 35), 98));
+  // 1. Conversion Score (0-100) — based on Cart Purchase Rate (CPR)
+  const cpr = (purchases / Math.max(cartAdds, 1)) * 100;
+  const conversionScore = Math.min(Math.round((cpr / 20.0) * 100), 100);
 
-  // 2. Conversion & CPR Score (0-100)
-  const targetCprBenchmark = 15.0; // 15% Cart Purchase Rate benchmark
-  const cprScore = Math.min((cpr / targetCprBenchmark) * 80, 96);
-  const conversionScore = Math.round(Math.min((conversionRate / 4.0) * 20 + cprScore, 98));
+  // 2. CTR Score (0-100) — 4.8% CTR is benchmark 100
+  const ctrScore = Math.min(Math.round((ctr / 4.8) * 100), 100);
 
-  // 3. Customer Satisfaction (0-100)
-  const refundPenalty = (product.refundRate || 1.2) * 10;
-  const customerSatisfaction = Math.round(Math.max(92 - refundPenalty, 40));
+  // 3. Waitlist Velocity Score (0-100)
+  const waitlistRate = (waitlists / Math.max(clicks, 1)) * 100;
+  const waitlistVelocity = Math.min(Math.round((waitlistRate / 12.0) * 100), 100);
 
-  // 4. Unit Economics (0-100)
-  const sellThrough = inventoryTotal > 0 ? (inventorySold / inventoryTotal) * 100 : 0;
-  const unitEconomics = Math.round(Math.min(sellThrough * 0.8 + 20, 95));
+  // 4. Benchmark Comparison Lift (0-100) — benchmark CTR is 2.4%
+  const benchmarkLift = Math.min(Math.round(50 + ((ctr - 2.4) / 2.4) * 50), 100);
 
-  // 5. FOMO & Urgency Score (0-100)
-  const batchFillRatio = batchTotal > 0 ? (batchClaimed / batchTotal) * 100 : 70;
-  const viewerSurge = Math.min((product.currentViewersCount || 45) * 0.5, 30);
-  const fomoUrgency = Math.round(Math.min(batchFillRatio * 0.7 + viewerSurge, 98));
+  // 5. Unit Economics Score (0-100) — margin ratio
+  const margin = Math.max(price - cac, 0);
+  const marginRatio = margin / Math.max(price, 1);
+  const unitEconomics = Math.min(Math.round(marginRatio * 100), 100);
 
-  // Overall Weighted Score calculation:
-  // Demand (25%), Conversion (25%), Economics (20%), Satisfaction (15%), FOMO Urgency (15%)
-  const overall = Math.round(
-    demand * 0.25 + conversionScore * 0.25 + unitEconomics * 0.2 + customerSatisfaction * 0.15 + fomoUrgency * 0.15
+  // Composite Weighted Score (0-100)
+  const overall = Math.min(
+    Math.max(
+      Math.round(
+        conversionScore * 0.35 +
+        ctrScore * 0.25 +
+        waitlistVelocity * 0.20 +
+        unitEconomics * 0.20
+      ),
+      15
+    ),
+    99
   );
 
   return {
-    overall: Math.min(Math.max(overall, 15), 99),
-    demand,
+    overall,
+    demand: Math.round((waitlistVelocity + ctrScore) / 2),
     conversion: conversionScore,
-    customerSatisfaction,
+    ctrScore,
+    waitlistVelocity,
+    benchmarkLift,
     unitEconomics,
-    fomoUrgency,
+    fomoUrgency: Math.min(Math.round((purchases / Math.max(product.limitedBatchSize || 50, 1)) * 100), 100),
   };
 }
 
-export function getScoreInterpretation(score: number): {
-  label: string;
-  badgeColor: string;
-  description: string;
-} {
-  if (score >= 80) {
-    return {
-      label: 'Validated Demand (Ready for Marketplace)',
-      badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold',
-      description: 'Strong cart purchase rate (CPR), high conversion momentum, and clear unit economics. Ready for 5-7% commission marketplace graduation.',
-    };
-  } else if (score >= 65) {
-    return {
-      label: 'High Validation Potential',
-      badgeColor: 'bg-blue-100 text-blue-800 border-blue-300 font-semibold',
-      description: 'Healthy interest detected. Running a Growth Ad Package can unlock target cart conversion thresholds.',
-    };
-  } else if (score >= 50) {
-    return {
-      label: 'Early Prototype Traction',
-      badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
-      description: 'Initial audience engagement recorded. Refining value proposition or price tiers recommended.',
-    };
-  } else {
-    return {
-      label: 'Validation Underway',
-      badgeColor: 'bg-slate-100 text-slate-700 border-slate-300',
-      description: 'Collecting baseline metrics. Additional validation campaign traffic recommended.',
-    };
+export function getDecisionStatus(overallScore: number): ValidationDecisionStatus {
+  if (overallScore >= 75) return 'green';
+  if (overallScore >= 50) return 'yellow';
+  return 'red';
+}
+
+export function getDecisionGateInterpretation(status: ValidationDecisionStatus, score: number) {
+  switch (status) {
+    case 'green':
+      return {
+        badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+        dotColor: 'bg-emerald-400',
+        headline: 'Scale-Ready (High Market Validation)',
+        summary: `Validation score is ${score}/100 with favorable Cart Purchase Rate and positive unit economics. Verified demand exceeds category baseline by +75%.`,
+        recommendation: 'Proceed directly to launch on Venturely Marketplace (5-7% commission) or Export Validation Data to your own independent storefront.',
+        actionLabel: 'Launch on Marketplace (6% Commission)',
+        secondaryActionLabel: 'Export Validation Certificate (PDF/JSON)',
+      };
+    case 'yellow':
+      return {
+        badge: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+        dotColor: 'bg-amber-400',
+        headline: 'Iterate & Re-Test (Moderate Demand Signal)',
+        summary: `Validation score is ${score}/100. High traffic curiosity detected, but cart drop-off suggests price resistance or creative positioning mismatch.`,
+        recommendation: 'Do not commit to large inventory runs yet. Run a 3-day A/B test with an adjusted price point (-15%) or refreshed video creative.',
+        actionLabel: 'Launch A/B Price & Creative Re-Test',
+        secondaryActionLabel: 'View Detailed Telemetry Breakdown',
+      };
+    case 'red':
+    default:
+      return {
+        badge: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+        dotColor: 'bg-rose-400',
+        headline: "Don't Scale Yet (Weak Purchase Intent)",
+        summary: `Validation score is ${score}/100. Customer acquisition cost (CAC) significantly exceeds product margin with low Cart Purchase Rate.`,
+        recommendation: 'Capital preservation recommended. Pivot the problem/solution statement and interview waitlist leads before producing units.',
+        actionLabel: 'Pivot Positioning & Reset Campaign',
+        secondaryActionLabel: 'Export Feedback Notes',
+      };
   }
 }

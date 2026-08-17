@@ -2,9 +2,17 @@ export type UserRole = 'FOUNDER' | 'CUSTOMER' | 'ADMIN';
 
 export type StartupCategory = 'D2C' | 'SAAS' | 'B2B' | 'B2C';
 
+export type BusinessStage = 'idea' | 'prototype' | 'low_inventory';
+
+export type InventoryMode = 'zero' | 'limited' | 'full';
+
+export type ProductStatus = 'draft' | 'validating' | 'validated' | 'launched' | 'rejected';
+
 export type LogisticsModel = 'SELF_FULFILLED' | 'VENTURELY_SUPPORTED';
 
 export type ValidationPackageTier = 'STARTER' | 'GROWTH' | 'SCALE';
+
+export type ValidationDecisionStatus = 'green' | 'yellow' | 'red';
 
 export type ProductStage =
   | '0_IDEA'
@@ -27,12 +35,14 @@ export interface StageInfo {
 }
 
 export interface ValidationScoreBreakdown {
-  overall: number; // 0-100
+  overall: number; // 0-100 composite
   demand: number; // 0-100
   conversion: number; // 0-100
-  customerSatisfaction: number; // 0-100
+  ctrScore: number; // 0-100
+  waitlistVelocity: number; // 0-100
+  benchmarkLift: number; // 0-100
   unitEconomics: number; // 0-100
-  fomoUrgency: number; // 0-100
+  fomoUrgency?: number; // 0-100
 }
 
 export interface NextStepRecommendation {
@@ -55,15 +65,41 @@ export interface CustomerFeedbackTheme {
   quotes: string[];
 }
 
+export interface MetaAdCampaign {
+  id: string;
+  productId: string;
+  adPlatform: 'meta' | 'google';
+  budget: number;
+  dailyBudget: number;
+  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DRAFT';
+  targetAudience: string;
+  creativeHeadline: string;
+  creativeImageUrl?: string;
+  pixelId: string;
+  impressions: number;
+  reach: number;
+  clicks: number;
+  ctr: number; // e.g. 4.6%
+  cpc: number; // e.g. ₹18.5
+  cpm: number;
+  add_to_cart: number;
+  purchases: number;
+  waitlist_signups: number;
+  geoBreakdown: Record<string, number>;
+  demographics: Record<string, number>;
+  startedAt: string;
+}
+
 export interface AdMetrics {
   adSpend: number;
   impressions: number;
   clicks: number;
-  ctr: number; // e.g. 3.4%
-  cpc: number; // e.g. ₹18
+  ctr: number; // e.g. 4.6%
+  cpc: number; // e.g. ₹18.5
   cac: number; // Cost Per Acquisition / Validation
   roas: number;
   activePackage?: ValidationPackageTier;
+  metaCampaign?: MetaAdCampaign;
 }
 
 export interface Product {
@@ -77,6 +113,8 @@ export interface Product {
   category: string;
   startupType: StartupCategory; // D2C, SAAS, B2B, B2C
   stage: ProductStage;
+  businessStage: BusinessStage;
+  inventoryMode: InventoryMode; // 'zero' | 'limited' | 'full'
   founderName: string;
   companyName: string;
   founderEmail: string;
@@ -138,10 +176,11 @@ export interface Product {
   // Ad Campaign Integration
   adMetrics: AdMetrics;
 
-  // Financial Economics
+  // Financial Economics & Marketplace
   commissionRate: number; // 5% - 7% platform fee
 
-  // Proprietary score & recommendations
+  // Decision Gate & Proprietary score
+  decisionStatus: ValidationDecisionStatus; // 'green' | 'yellow' | 'red'
   validationScore: ValidationScoreBreakdown;
   recommendations: NextStepRecommendation[];
   feedbackThemes: CustomerFeedbackTheme[];
@@ -184,9 +223,14 @@ export interface Order {
   customerName: string;
   customerEmail: string;
   shippingAddress: string;
+  pincode?: string;
   amount: number;
   quantity: number;
+  commissionRate: number; // 5-7%
+  commissionAmount: number; // Platform fee
+  netSellerPayout: number;
   logisticsModel: LogisticsModel;
+  logisticsPartner?: 'Shiprocket' | 'Self';
   status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   paymentStatus: 'PAID' | 'PENDING' | 'REFUNDED';
   trackingNumber?: string;
@@ -223,6 +267,27 @@ export interface MarketingCampaignPackage {
   cac: number;
   roas: number;
   startDate: string;
+}
+
+export interface CrmContact {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  totalOrders: number;
+  totalSpent: number;
+  segment: 'VIP_REPEAT_BUYER' | 'FIRST_TIME_BUYER' | 'VIP_WAITLIST' | 'CART_ABANDONER';
+  lastActive: string;
+  stage: string;
+}
+
+export interface SaaSSubscriptionPlan {
+  tier: 'Starter' | 'Growth' | 'Scale';
+  name: string;
+  priceMonthly: number;
+  description: string;
+  features: string[];
+  recommended?: boolean;
 }
 
 export interface PlatformConfig {

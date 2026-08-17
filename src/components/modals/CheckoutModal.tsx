@@ -127,12 +127,16 @@ export function CheckoutModal({ product, isOpen, onClose }: CheckoutModalProps) 
                 <span>{formatCurrency(totalAmount)}</span>
               </div>
               <div className="flex justify-between text-gray-600">
-                <span>Fulfillment Handling:</span>
-                <span className="text-emerald-600 font-bold">Standard Rate</span>
+                <span>Platform Commission (6% standard):</span>
+                <span className="text-[#489cff] font-bold">{formatCurrency(Math.round(totalAmount * 0.06))}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Shiprocket Logistics:</span>
+                <span className="text-emerald-600 font-bold">Doorstep Pickup Queued</span>
               </div>
               <div className="flex justify-between font-extrabold text-black text-base pt-1">
                 <span>Total Payment:</span>
-                <span className="text-[#489cff]">{formatCurrency(totalAmount)}</span>
+                <span className="text-emerald-600">{formatCurrency(totalAmount)}</span>
               </div>
             </div>
 

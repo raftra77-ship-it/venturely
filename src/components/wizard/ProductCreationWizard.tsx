@@ -4,10 +4,10 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { addProduct } from '@/lib/data';
 import { useRole } from '@/context/RoleContext';
-import { ProductStage, StartupCategory, LogisticsModel, ValidationPackageTier } from '@/types';
+import { ProductStage, StartupCategory, LogisticsModel, ValidationPackageTier, BusinessStage, InventoryMode } from '@/types';
 import { PRODUCT_CATEGORIES, STARTUP_CATEGORIES, VALIDATION_PACKAGE_TIERS, LOGISTICS_OPTIONS } from '@/lib/constants';
 import { ProductCard } from '../product/ProductCard';
-import { Sparkles, CheckCircle2, ArrowRight, ArrowLeft, Rocket, ShieldCheck, Truck, Megaphone, Box } from 'lucide-react';
+import { Sparkles, CheckCircle2, ArrowRight, ArrowLeft, Rocket, ShieldCheck, Truck, Megaphone, Box, Globe, Zap } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
 
 export function ProductCreationWizard() {
@@ -28,6 +28,8 @@ export function ProductCreationWizard() {
     solution: 'Smart light-blocking headband that actively accelerates deep REM sleep onset.',
     category: 'Health & Wellness',
     startupType: 'D2C' as StartupCategory,
+    businessStage: 'prototype' as BusinessStage,
+    inventoryMode: 'zero' as InventoryMode,
     stage: '2_PROTOTYPE' as ProductStage,
     logisticsModel: 'VENTURELY_SUPPORTED' as LogisticsModel,
     validationPackage: 'GROWTH' as ValidationPackageTier,
@@ -46,19 +48,22 @@ export function ProductCreationWizard() {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
+  const slug = formData.productName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
   const handlePublish = (e: React.FormEvent) => {
     e.preventDefault();
     const pkg = VALIDATION_PACKAGE_TIERS[formData.validationPackage];
     const created = addProduct({
       ...formData,
       name: formData.productName,
-      slug: formData.productName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      slug: slug,
       images: [formData.imageUrl],
       inventorySold: 0,
       isApprovedByAdmin: true,
       isGraduatedToMarketplace: false,
       isFeatured: true,
       isSponsored: false,
+      decisionStatus: 'yellow',
       logisticsModel: formData.logisticsModel,
       shippingEstimateDays: formData.logisticsModel === 'VENTURELY_SUPPORTED' ? '3-4 Business Days' : 'Merchant Direct Delivery',
       shippingFee: formData.logisticsModel === 'VENTURELY_SUPPORTED' ? 49 : 0,
@@ -66,14 +71,14 @@ export function ProductCreationWizard() {
 
     setActiveProductId(created.id);
     refreshProducts();
-    showToast(`Startup "${created.name}" published for validation campaign!`);
-    router.push('/founder/dashboard');
+    showToast(`Validation Campaign for "${created.name}" is now live!`);
+    router.push(`/v/${created.slug}`);
   };
 
   const previewProduct: any = {
     id: 'preview_temp',
     name: formData.productName || 'Untitled Startup',
-    slug: 'preview',
+    slug: slug,
     tagline: formData.tagline || 'Revolutionary new product',
     description: formData.description,
     problem: formData.problem,
@@ -81,6 +86,9 @@ export function ProductCreationWizard() {
     category: formData.category,
     startupType: formData.startupType,
     stage: formData.stage,
+    businessStage: formData.businessStage,
+    inventoryMode: formData.inventoryMode,
+    decisionStatus: 'yellow',
     founderName: formData.founderName,
     companyName: formData.companyName,
     founderEmail: formData.founderEmail,
@@ -117,7 +125,7 @@ export function ProductCreationWizard() {
     commissionRate: 6,
     adMetrics: {
       activePackage: formData.validationPackage,
-      adSpend: pkgAdSpend(formData.validationPackage),
+      adSpend: VALIDATION_PACKAGE_TIERS[formData.validationPackage].adSpendAllocation,
       impressions: 12000,
       clicks: 480,
       ctr: 4.0,
@@ -137,28 +145,26 @@ export function ProductCreationWizard() {
     feedbackThemes: [],
   };
 
-  function pkgAdSpend(tier: ValidationPackageTier) {
-    return VALIDATION_PACKAGE_TIERS[tier].adSpendAllocation;
-  }
-
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+    <div className="max-w-6xl mx-auto px-6 py-10 space-y-8 font-sans">
       {/* Wizard Header */}
-      <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-sm space-y-4">
+      <div className="bg-slate-900 border border-white/15 rounded-3xl p-8 shadow-xl space-y-4 text-white">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <span className="px-3 py-1 rounded-full bg-blue-50 text-[#489cff] font-bold text-xs uppercase tracking-wider">
-              Startup Campaign Creator
+            <span className="px-3 py-1 rounded-full bg-blue-500/20 text-[#489cff] font-extrabold text-xs uppercase tracking-wider">
+              Validation Lab Creator
             </span>
-            <h1 className="text-3xl font-extrabold text-black">Launch Validation Campaign</h1>
-            <p className="text-sm text-gray-500">Target real customer audience, measure cart purchase rates & lock in batch pre-orders.</p>
+            <h1 className="text-3xl font-extrabold text-white">Create Startup Validation Listing</h1>
+            <p className="text-sm text-gray-400">
+              Test real demand with Zero-Inventory pre-orders & Meta Ads before investing in tooling or inventory.
+            </p>
           </div>
           <span className="text-sm font-extrabold text-gray-400">Step {currentStep} of 5</span>
         </div>
 
         {/* Step Indicator */}
         <div className="grid grid-cols-5 gap-2 pt-2">
-          {['Startup Model', 'Prototype Stage', 'Logistics Setup', 'Ad Package', 'Review & Launch'].map((label, idx) => {
+          {['1. Startup Info', '2. Stage & Inventory', '3. Logistics', '4. Meta Ads Pack', '5. Launch Lab'].map((label, idx) => {
             const stepNum = idx + 1;
             const isActive = currentStep === stepNum;
             const isDone = currentStep > stepNum;
@@ -168,10 +174,10 @@ export function ProductCreationWizard() {
                 onClick={() => setCurrentStep(stepNum)}
                 className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-[#0f1628] text-white border-[#0f1628] shadow-md'
+                    ? 'bg-[#489cff] text-white border-[#489cff] shadow-lg shadow-blue-500/20'
                     : isDone
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                    : 'bg-gray-50 text-gray-400 border-gray-200'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                    : 'bg-white/5 text-gray-400 border-white/10'
                 }`}
               >
                 <div className="text-[10px] font-bold uppercase">Step {stepNum}</div>
@@ -182,119 +188,198 @@ export function ProductCreationWizard() {
         </div>
       </div>
 
-      {/* Step 1: Startup Model */}
+      {/* Step 1: Startup Model & Business Stage */}
       {currentStep === 1 && (
-        <div className="bg-white border border-gray-200 rounded-3xl p-8 space-y-6 shadow-sm">
-          <h2 className="text-xl font-extrabold text-black">1. Select Startup Business Model</h2>
+        <div className="bg-slate-900 border border-white/15 rounded-3xl p-8 space-y-6 shadow-xl text-white">
+          <h2 className="text-xl font-extrabold text-white">1. Brand & Business Stage</h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Business Stage Selector */}
+          <div className="space-y-2">
+            <label className="block text-xs font-extrabold uppercase tracking-wider text-gray-400">
+              Current Startup Stage
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { key: 'idea', label: 'Idea Stage', desc: 'Concept & wireframes only' },
+                { key: 'prototype', label: 'Prototype Stage', desc: '3D mockup / working sample' },
+                { key: 'low_inventory', label: 'Low/Zero Inventory', desc: 'Micro-run (10-50 units)' },
+              ].map((st) => (
+                <div
+                  key={st.key}
+                  onClick={() => updateField('businessStage', st.key)}
+                  className={`p-4 rounded-2xl border cursor-pointer transition-all space-y-1 ${
+                    formData.businessStage === st.key
+                      ? 'border-[#489cff] bg-blue-500/20 text-white'
+                      : 'border-white/10 bg-white/5 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <div className="font-bold text-xs text-white">{st.label}</div>
+                  <div className="text-[11px] text-gray-400">{st.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Category Selector */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             {STARTUP_CATEGORIES.map((cat) => (
               <div
                 key={cat.key}
                 onClick={() => updateField('startupType', cat.key)}
                 className={`p-5 rounded-2xl border cursor-pointer transition-all space-y-2 ${
                   formData.startupType === cat.key
-                    ? 'border-[#489cff] bg-blue-50/40 ring-2 ring-[#489cff]/20'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
+                    ? 'border-[#489cff] bg-blue-500/20 text-white'
+                    : 'border-white/10 bg-white/5 text-gray-400 hover:text-white'
                 }`}
               >
                 <div className="flex justify-between items-center">
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${cat.badge}`}>{cat.label}</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/10 text-white">{cat.label}</span>
                   {formData.startupType === cat.key && <CheckCircle2 className="w-5 h-5 text-[#489cff]" />}
                 </div>
-                <p className="text-xs text-gray-600 leading-relaxed">{cat.description}</p>
+                <p className="text-xs text-gray-400 leading-relaxed">{cat.description}</p>
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-white/10">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Product / Startup Name *</label>
+              <label className="block text-xs font-bold text-gray-300 mb-1">Product Title *</label>
               <input
                 type="text"
                 value={formData.productName}
                 onChange={(e) => updateField('productName', e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#489cff]"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-white/15 text-white text-xs focus:outline-none focus:border-[#489cff]"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Company / Brand Name *</label>
+              <label className="block text-xs font-bold text-gray-300 mb-1">Company / Brand Name *</label>
               <input
                 type="text"
                 value={formData.companyName}
                 onChange={(e) => updateField('companyName', e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#489cff]"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-white/15 text-white text-xs focus:outline-none focus:border-[#489cff]"
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-gray-700 mb-1">Tagline / Problem Statement *</label>
+              <label className="block text-xs font-bold text-gray-300 mb-1">Tagline / Core Value Hook *</label>
               <input
                 type="text"
                 value={formData.tagline}
                 onChange={(e) => updateField('tagline', e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#489cff]"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-white/15 text-white text-xs focus:outline-none focus:border-[#489cff]"
               />
             </div>
+          </div>
+
+          {/* Micro-Landing Page URL Slug Preview */}
+          <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 text-gray-300">
+              <Globe className="w-4 h-4 text-[#489cff]" />
+              <span>Public Micro-Landing URL:</span>
+            </div>
+            <div className="font-mono text-[#489cff] font-bold">venturely.io/v/{slug}</div>
           </div>
         </div>
       )}
 
-      {/* Step 2: Prototype & Inventory Stage */}
+      {/* Step 2: Zero Inventory Mode & Pricing */}
       {currentStep === 2 && (
-        <div className="bg-white border border-gray-200 rounded-3xl p-8 space-y-6 shadow-sm">
-          <h2 className="text-xl font-extrabold text-black">2. Inventory & Prototype Stage</h2>
+        <div className="bg-slate-900 border border-white/15 rounded-3xl p-8 space-y-6 shadow-xl text-white">
+          <h2 className="text-xl font-extrabold text-white">2. Zero-Inventory Mode & Pre-Order Price</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Initial Validation Inventory (Units) *</label>
-              <input
-                type="number"
-                value={formData.inventoryTotal}
-                onChange={(e) => updateField('inventoryTotal', Number(e.target.value))}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#489cff]"
-              />
-              <span className="text-[11px] text-gray-400">e.g. 50 units for limited batch</span>
+          {/* Inventory Mode Radio */}
+          <div className="space-y-2">
+            <label className="block text-xs font-extrabold uppercase tracking-wider text-gray-400">
+              Inventory Strategy
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div
+                onClick={() => updateField('inventoryMode', 'zero')}
+                className={`p-4 rounded-2xl border cursor-pointer space-y-1 ${
+                  formData.inventoryMode === 'zero'
+                    ? 'border-[#489cff] bg-blue-500/20 text-white'
+                    : 'border-white/10 bg-white/5 text-gray-400'
+                }`}
+              >
+                <div className="font-bold text-xs text-white">Zero Inventory (Recommended)</div>
+                <div className="text-[11px] text-gray-400">Pre-order reservation & VIP waitlist test only</div>
+              </div>
+
+              <div
+                onClick={() => updateField('inventoryMode', 'limited')}
+                className={`p-4 rounded-2xl border cursor-pointer space-y-1 ${
+                  formData.inventoryMode === 'limited'
+                    ? 'border-[#489cff] bg-blue-500/20 text-white'
+                    : 'border-white/10 bg-white/5 text-gray-400'
+                }`}
+              >
+                <div className="font-bold text-xs text-white">Limited Batch (10-50 units)</div>
+                <div className="text-[11px] text-gray-400">Micro prototype run ready to ship</div>
+              </div>
+
+              <div
+                onClick={() => updateField('inventoryMode', 'full')}
+                className={`p-4 rounded-2xl border cursor-pointer space-y-1 ${
+                  formData.inventoryMode === 'full'
+                    ? 'border-[#489cff] bg-blue-500/20 text-white'
+                    : 'border-white/10 bg-white/5 text-gray-400'
+                }`}
+              >
+                <div className="font-bold text-xs text-white">Full Scale Inventory</div>
+                <div className="text-[11px] text-gray-400">100+ units in warehouse</div>
+              </div>
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Validation Pre-Order Price (₹) *</label>
+              <label className="block text-xs font-bold text-gray-300 mb-1">Validation Test Price (₹) *</label>
               <input
                 type="number"
                 value={formData.price}
                 onChange={(e) => updateField('price', Number(e.target.value))}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#489cff]"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-white/15 text-white text-xs focus:outline-none focus:border-[#489cff]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Expected Retail Price (₹) *</label>
+              <label className="block text-xs font-bold text-gray-300 mb-1">Expected Retail Price (₹) *</label>
               <input
                 type="number"
                 value={formData.expectedPrice}
                 onChange={(e) => updateField('expectedPrice', Number(e.target.value))}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#489cff]"
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-white/15 text-white text-xs focus:outline-none focus:border-[#489cff]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1">Test Batch Cap (Units) *</label>
+              <input
+                type="number"
+                value={formData.inventoryTotal}
+                onChange={(e) => updateField('inventoryTotal', Number(e.target.value))}
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-white/15 text-white text-xs focus:outline-none focus:border-[#489cff]"
               />
             </div>
           </div>
 
           <div className="space-y-3 pt-2">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Manufacturing & Prototype Status *</label>
-              <input
-                type="text"
-                value={formData.manufacturingStatus}
-                onChange={(e) => updateField('manufacturingStatus', e.target.value)}
-                placeholder="e.g. 3D Printed Prototype assembled — 50 units micro-run"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#489cff]"
+              <label className="block text-xs font-bold text-gray-300 mb-1">Problem Being Solved *</label>
+              <textarea
+                rows={2}
+                value={formData.problem}
+                onChange={(e) => updateField('problem', e.target.value)}
+                className="w-full px-4 py-2 rounded-xl bg-slate-800 border border-white/15 text-white text-xs focus:outline-none focus:border-[#489cff]"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Detailed Description *</label>
+              <label className="block text-xs font-bold text-gray-300 mb-1">Solution & Key Specs *</label>
               <textarea
-                rows={3}
-                value={formData.description}
-                onChange={(e) => updateField('description', e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-[#489cff]"
+                rows={2}
+                value={formData.solution}
+                onChange={(e) => updateField('solution', e.target.value)}
+                className="w-full px-4 py-2 rounded-xl bg-slate-800 border border-white/15 text-white text-xs focus:outline-none focus:border-[#489cff]"
               />
             </div>
           </div>
@@ -303,53 +388,53 @@ export function ProductCreationWizard() {
 
       {/* Step 3: Logistics Setup */}
       {currentStep === 3 && (
-        <div className="bg-white border border-gray-200 rounded-3xl p-8 space-y-6 shadow-sm">
-          <h2 className="text-xl font-extrabold text-black">3. Fulfillment & Logistics Preference</h2>
+        <div className="bg-slate-900 border border-white/15 rounded-3xl p-8 space-y-6 shadow-xl text-white">
+          <h2 className="text-xl font-extrabold text-white">3. Logistics & Fulfillment Model</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div
               onClick={() => updateField('logisticsModel', 'SELF_FULFILLED')}
               className={`p-6 rounded-2xl border cursor-pointer transition-all space-y-3 ${
                 formData.logisticsModel === 'SELF_FULFILLED'
-                  ? 'border-[#489cff] bg-blue-50/40 ring-2 ring-[#489cff]/20'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  ? 'border-[#489cff] bg-blue-500/20 text-white'
+                  : 'border-white/10 bg-white/5 text-gray-400'
               }`}
             >
               <div className="flex justify-between items-center">
-                <h4 className="font-extrabold text-black text-base">Merchant Self-Fulfillment</h4>
+                <h4 className="font-extrabold text-white text-base">Merchant Self-Fulfillment</h4>
                 {formData.logisticsModel === 'SELF_FULFILLED' && <CheckCircle2 className="w-5 h-5 text-[#489cff]" />}
               </div>
-              <p className="text-xs text-gray-600 leading-relaxed">
-                You pack and ship directly using your own courier account. No platform logistics charge.
+              <p className="text-xs text-gray-400 leading-relaxed">
+                You pack and ship directly using your own courier (Shiprocket, Delhivery, etc.). Zero platform logistics fee.
               </p>
-              <div className="text-xs font-bold text-emerald-600">₹0 Extra Platform Shipping Fee</div>
+              <div className="text-xs font-bold text-emerald-400">₹0 Extra Platform Shipping Fee</div>
             </div>
 
             <div
               onClick={() => updateField('logisticsModel', 'VENTURELY_SUPPORTED')}
               className={`p-6 rounded-2xl border cursor-pointer transition-all space-y-3 ${
                 formData.logisticsModel === 'VENTURELY_SUPPORTED'
-                  ? 'border-[#489cff] bg-blue-50/40 ring-2 ring-[#489cff]/20'
-                  : 'border-gray-200 bg-white hover:border-gray-300'
+                  ? 'border-[#489cff] bg-blue-500/20 text-white'
+                  : 'border-white/10 bg-white/5 text-gray-400'
               }`}
             >
               <div className="flex justify-between items-center">
-                <h4 className="font-extrabold text-black text-base">Venturely Platform Logistics</h4>
+                <h4 className="font-extrabold text-white text-base">Shiprocket Partner Logistics</h4>
                 {formData.logisticsModel === 'VENTURELY_SUPPORTED' && <CheckCircle2 className="w-5 h-5 text-[#489cff]" />}
               </div>
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Use Venturely integrated dispatch. Automated shipping label generation, pickup scheduling & tracking.
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Automated shipping label generation, courier doorstep pickup, and real-time tracking for buyers.
               </p>
-              <div className="text-xs font-bold text-purple-700">Flat ₹49 Surface / ₹89 Express per unit</div>
+              <div className="text-xs font-bold text-purple-400">Flat ₹49 Surface / ₹89 Express per unit</div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Step 4: Managed Validation Ad Package */}
+      {/* Step 4: Meta Ads Package */}
       {currentStep === 4 && (
-        <div className="bg-white border border-gray-200 rounded-3xl p-8 space-y-6 shadow-sm">
-          <h2 className="text-xl font-extrabold text-black">4. Select Validation Ad Package</h2>
+        <div className="bg-slate-900 border border-white/15 rounded-3xl p-8 space-y-6 shadow-xl text-white">
+          <h2 className="text-xl font-extrabold text-white">4. Select Meta Test Ads Package</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {Object.values(VALIDATION_PACKAGE_TIERS).map((pkg) => (
@@ -358,18 +443,18 @@ export function ProductCreationWizard() {
                 onClick={() => updateField('validationPackage', pkg.tier)}
                 className={`p-6 rounded-2xl border cursor-pointer transition-all space-y-4 flex flex-col justify-between ${
                   formData.validationPackage === pkg.tier
-                    ? 'border-[#489cff] bg-blue-50/40 ring-2 ring-[#489cff]/20'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
+                    ? 'border-[#489cff] bg-blue-500/20 text-white shadow-xl shadow-blue-500/10'
+                    : 'border-white/10 bg-white/5 text-gray-400'
                 }`}
               >
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <h4 className="font-extrabold text-black text-base">{pkg.packageName}</h4>
+                    <h4 className="font-extrabold text-white text-base">{pkg.packageName}</h4>
                     {formData.validationPackage === pkg.tier && <CheckCircle2 className="w-5 h-5 text-[#489cff]" />}
                   </div>
-                  <div className="text-2xl font-extrabold text-black">{formatCurrency(pkg.price)}</div>
-                  <div className="text-xs font-bold text-emerald-600">Ad Spend Credit: {formatCurrency(pkg.adSpendAllocation)}</div>
-                  <p className="text-xs text-gray-600">Targeting ~{pkg.targetVisitors} live visitor impressions.</p>
+                  <div className="text-2xl font-black text-white">{formatCurrency(pkg.price)}</div>
+                  <div className="text-xs font-bold text-emerald-400">Ad Spend Injection: {formatCurrency(pkg.adSpendAllocation)}</div>
+                  <p className="text-xs text-gray-400">Drives ~{pkg.targetVisitors} verified shoppers to your micro-landing page.</p>
                 </div>
               </div>
             ))}
@@ -377,46 +462,47 @@ export function ProductCreationWizard() {
         </div>
       )}
 
-      {/* Step 5: Review & Launch */}
+      {/* Step 5: Review & Publish */}
       {currentStep === 5 && (
-        <div className="bg-white border border-gray-200 rounded-3xl p-8 space-y-6 shadow-sm">
-          <h2 className="text-xl font-extrabold text-black">5. Review & Launch Campaign</h2>
+        <div className="bg-slate-900 border border-white/15 rounded-3xl p-8 space-y-6 shadow-xl text-white">
+          <h2 className="text-xl font-extrabold text-white">5. Review & Launch Validation Campaign</h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-4">
-              <h3 className="font-bold text-sm text-gray-700 uppercase">Card Preview on Platform</h3>
+              <h3 className="font-bold text-xs text-gray-400 uppercase">Product Card Preview</h3>
               <ProductCard product={previewProduct} />
             </div>
 
-            <div className="space-y-4 p-6 rounded-2xl bg-gray-50 border border-gray-200 flex flex-col justify-between">
+            <div className="space-y-4 p-6 rounded-2xl bg-white/5 border border-white/10 flex flex-col justify-between">
               <div className="space-y-3">
-                <h3 className="font-extrabold text-black text-lg">Validation Campaign Details</h3>
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-gray-700"><span>Startup Model:</span><strong className="text-black">{formData.startupType}</strong></div>
-                  <div className="flex justify-between text-gray-700"><span>Logistics Option:</span><strong className="text-black">{formData.logisticsModel}</strong></div>
-                  <div className="flex justify-between text-gray-700"><span>Validation Package:</span><strong className="text-purple-700 font-extrabold">{VALIDATION_PACKAGE_TIERS[formData.validationPackage].packageName}</strong></div>
-                  <div className="flex justify-between text-gray-700"><span>Ad Credit Budget:</span><strong className="text-emerald-600">{formatCurrency(VALIDATION_PACKAGE_TIERS[formData.validationPackage].adSpendAllocation)}</strong></div>
-                  <div className="flex justify-between text-gray-700"><span>Marketplace Commission:</span><strong className="text-[#489cff]">5–7% Commission After Graduation</strong></div>
+                <h3 className="font-extrabold text-white text-lg">Validation Campaign Summary</h3>
+                <div className="space-y-2 text-xs text-gray-300">
+                  <div className="flex justify-between"><span>Startup Stage:</span><strong className="text-white">{formData.businessStage.toUpperCase()}</strong></div>
+                  <div className="flex justify-between"><span>Inventory Mode:</span><strong className="text-emerald-400">{formData.inventoryMode.toUpperCase()}</strong></div>
+                  <div className="flex justify-between"><span>Public URL:</span><strong className="font-mono text-[#489cff]">venturely.io/v/{slug}</strong></div>
+                  <div className="flex justify-between"><span>Meta Ad Package:</span><strong className="text-purple-400">{VALIDATION_PACKAGE_TIERS[formData.validationPackage].packageName}</strong></div>
+                  <div className="flex justify-between"><span>Ad Credit Budget:</span><strong className="text-emerald-400">{formatCurrency(VALIDATION_PACKAGE_TIERS[formData.validationPackage].adSpendAllocation)}</strong></div>
+                  <div className="flex justify-between"><span>Marketplace Fee:</span><strong className="text-[#489cff]">5–7% Commission on Launch</strong></div>
                 </div>
               </div>
 
               <button
                 onClick={handlePublish}
-                className="smytten-btn w-full justify-center py-3.5 bg-[#489cff] hover:bg-blue-600 text-white font-bold text-sm shadow-xl shadow-blue-500/20"
+                className="w-full py-4 rounded-2xl bg-[#489cff] hover:bg-blue-600 font-extrabold text-white text-sm shadow-xl shadow-blue-500/25 transition-all cursor-pointer"
               >
-                Confirm & Launch Campaign ({formatCurrency(VALIDATION_PACKAGE_TIERS[formData.validationPackage].price)})
+                Launch Validation Lab ({formatCurrency(VALIDATION_PACKAGE_TIERS[formData.validationPackage].price)})
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Wizard Footer Controls */}
+      {/* Footer Controls */}
       <div className="flex justify-between items-center">
         {currentStep > 1 ? (
           <button
             onClick={() => setCurrentStep((prev) => prev - 1)}
-            className="px-5 py-2.5 rounded-xl border border-gray-300 font-bold text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
+            className="px-5 py-2.5 rounded-xl border border-white/20 font-bold text-xs text-gray-300 hover:text-white hover:bg-white/5 flex items-center gap-2 cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
@@ -425,7 +511,7 @@ export function ProductCreationWizard() {
         {currentStep < 5 && (
           <button
             onClick={() => setCurrentStep((prev) => prev + 1)}
-            className="px-6 py-2.5 rounded-xl bg-[#0f1628] hover:bg-black font-bold text-xs text-white flex items-center gap-2 cursor-pointer shadow-md"
+            className="px-6 py-2.5 rounded-xl bg-[#489cff] hover:bg-blue-600 font-bold text-xs text-white flex items-center gap-2 cursor-pointer shadow-lg shadow-blue-500/25"
           >
             Next Step <ArrowRight className="w-4 h-4" />
           </button>
